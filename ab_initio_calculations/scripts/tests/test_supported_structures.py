@@ -115,8 +115,8 @@ if __name__ == "__main__":
     api_key = ""
     for i in range(5):
         files = get_structure_from_mpds(
-            api_key, 1, "/root/projects/ab_initio_calculations/cif_dir"
+            api_key, 1, "ab_initio_calculations/cif_dir"
         )
         convert_to_pcrystal_input(
-            "/root/projects/ab_initio_calculations/cif_dir", files
+            "ab_initio_calculations/cif_dir", files
         )
