@@ -7,7 +7,18 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+*INPUT
+*fort.34
+*OUTPUT
+*.7z
+*.cif
+*.d12
+*fort.9
+*.json
+*fort.7
+*fort.87
 .Python
+*.xlsx
 build/
 develop-eggs/
 dist/
