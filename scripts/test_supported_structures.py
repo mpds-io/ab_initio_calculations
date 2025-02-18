@@ -1,3 +1,4 @@
+
 import os
 import random
 
@@ -13,8 +14,12 @@ import ase
 
 def get_random_element() -> list:
     """Return random chemical element for which there exists a basis"""
-    # change path to basis if another
-    files = [f.replace(".basis", "") for f in os.listdir("/basis/MPDSBSL_NEUTRAL_24")]
+    files = [f.replace(".basis", "") for f in os.listdir(
+        os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "../basis_sets/MPDSBSL_NEUTRAL_24"
+        )
+    )]
     return files[random.randint(0, len(files))]
 
 
@@ -114,12 +119,12 @@ def convert_to_pcrystal_input(dir: str, atoms_obj: list[ase.Atoms]):
         submit_yascheduler_task(input_file)
 
 if __name__ == "__main__":
-    api_key = ""
-    dir = ""
+    api_key = "KEY"
+    pcrystal_input_dir = "./pcrystal_input"
     for i in range(20):
         atoms_obj = get_structure_from_mpds(
             api_key
         )
         convert_to_pcrystal_input(
-            dir, [atoms_obj]
+            pcrystal_input_dir, [atoms_obj]
         )

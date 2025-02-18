@@ -1,35 +1,45 @@
-import requests
+
 from math import log
+
+import requests
 import numpy as np
 
-    
-def get_props_folders_map() -> dict:
-    mapping = {"electrical conductivity": "TRANSPORT/SIGMA.DAT", "Seebeck coefficient": "TRANSPORT/SEEBECK.DAT",
-        "enthalpy of formation": "HFORM", "vibrational spectra": "PHONON", "infrared spectra":
-        "PHONON", "Raman spectra": "PHONON", "heat capacity at constant pressure": "PHONON",
-        "isothermal bulk modulus": "ELASTIC", "poisson ratio": "ELASTIC", "effective charge": "STRUCT",
-        "energy gap for direct transition": "STRUCT", "energy gap for indirect transition": "STRUCT",
-        "energy gap": "STRUCT", "magnetic moment": "STRUCT"
-        }
-    return mapping
 
-        
+ab_props_mapping = {
+    "electrical conductivity": "TRANSPORT/SIGMA.DAT",
+    "Seebeck coefficient": "TRANSPORT/SEEBECK.DAT",
+    "enthalpy of formation": "HFORM",
+    "vibrational spectra": "PHONON",
+    "infrared spectra": "PHONON",
+    "Raman spectra": "PHONON",
+    "heat capacity at constant pressure": "PHONON",
+    "isothermal bulk modulus": "ELASTIC",
+    "poisson ratio": "ELASTIC",
+    "effective charge": "STRUCT",
+    "energy gap for direct transition": "STRUCT",
+    "energy gap for indirect transition": "STRUCT",
+    "energy gap": "STRUCT",
+    "magnetic moment": "STRUCT",
+}
+
+
+def get_props_folders_map() -> dict:
+    return ab_props_mapping
+
+
 def get_props_names_mpds() -> list:
     """
-    Get all avalible properties names in MPDS database
+    Get all avalible properties names from the MPDS database
     """
     url = 'https://mpds.io/wmdata.json'
     res = requests.get(url).json()
     props = res['props']
     return props
 
+
 def get_ab_initio_props_names_mpds() -> list:
-    props = ['electrical conductivity', 'Seebeck coefficient', 'enthalpy of formation',
-             'vibrational spectra', 'heat capacity at constant pressure', 'isothermal bulk modulus',
-             'poisson ratio', 'effective charge', 'energy gap for direct transition',
-             'energy gap for indirect transition', 'energy gap', 'magnetic moment', 'infrared spectra',
-             'Raman spectra']
-    return props
+    return list(ab_props_mapping.keys())
+
 
 def assert_conforming_input(content):
     return  'PBE0' in content \
