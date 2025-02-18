@@ -1,3 +1,4 @@
+
 import os
 import random
 
@@ -41,8 +42,12 @@ def define_same_structures(structures: list[dict]) -> list[dict]:
 
 def get_random_element() -> list:
     """Return random chemical element for which there exists a basis"""
-    # change path to basis if another
-    files = [f.replace(".basis", "") for f in os.listdir("/basis/MPDSBSL_NEUTRAL_24")]
+    files = [f.replace(".basis", "") for f in os.listdir(
+        os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "../basis_sets/MPDSBSL_NEUTRAL_24"
+        )
+    )]
     return files[random.randint(0, len(files))]
 
 
@@ -148,7 +153,7 @@ def convert_to_pcrystal_input(dir: str, file_names: list):
 
 if __name__ == "__main__":
     api_key = "KEY"
-    dir_cif = "/cif_dir"
+    dir_cif = "./cif_dir"
     for i in range(20):
         try:
             files = get_structure_from_mpds(api_key, dir_cif)
