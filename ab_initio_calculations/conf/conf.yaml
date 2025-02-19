@@ -1,0 +1,3 @@
+basis_sets_path: ab_initio_calculations/basis_sets/MPDSBSL_NEUTRAL_24
+mpds_api_key: KEY
+pcrystal_input_dir: ab_initio_calculations/pcrystal_input
