@@ -101,10 +101,6 @@ def submit_yascheduler_task(input_file):
 def convert_to_pcrystal_input(dir: str, atoms_obj: list[ase.Atoms], entry: str = None):
     """Convert structures from CIF file to Pcrystal input format (d12, fort.34)"""
     for idx, ase_obj in enumerate(atoms_obj):
-        ase_obj, error = refine(ase_obj, conventional_cell=True)
-        if error:
-            raise RuntimeError(error)
-
         setup = Calc_setup()
         inputs, error = setup.preprocess(ase_obj, "pcrystal", "test " + entry)
         if error:
