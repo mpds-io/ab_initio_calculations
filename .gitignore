@@ -183,3 +183,4 @@ cython_debug/
 
 data/
 conf/env.ini
+pcrystal_inputs

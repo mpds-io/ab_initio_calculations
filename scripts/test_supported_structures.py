@@ -87,7 +87,7 @@ def submit_yascheduler_task(input_file):
     yac = Yascheduler()
     result = yac.queue_submit_task(
         label,
-        {"fort.34": STRUCT_INPUT, "INPUT": SETUP_INPUT, "local_folder": None},
+        {"fort.34": STRUCT_INPUT, "INPUT": SETUP_INPUT, "local_folder": work_folder},
         TARGET_ENGINE,
     )
     print(label)
@@ -122,7 +122,7 @@ def convert_to_pcrystal_input(dir: str, atoms_obj: list[ase.Atoms]):
 
 if __name__ == "__main__":
 
-    pcrystal_input_dir = "./pcrystal_input"
+    pcrystal_input_dir = "./pcrystal_inputs"
     for i in range(20):
 
         try:
