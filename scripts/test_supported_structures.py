@@ -6,12 +6,15 @@ import numpy as np
 import set_path
 from metis_backend.calculations import Calc_setup
 from metis_backend.structures.struct_utils import refine
-from mpds_client import MPDSDataRetrieval, MPDSDataTypes
+from mpds_client import MPDSDataRetrieval, MPDSDataTypes, APIError
 
 from yascheduler import Yascheduler
 import ase
 import yaml
 
+
+
+TARGET_ENGINE = "pcrystal"
 
 def get_random_element() -> list:
     """Return random chemical element for which there exists a basis"""
@@ -24,12 +27,13 @@ def get_random_element() -> list:
             dir
         )
     )]
-    return files[random.randint(0, len(files))]
+    return random.choice(files)
 
 
-def get_structure_from_mpds(api_key: str) -> list:
-    """Request structures from MPDS, convert to ase.Atoms, return median structure from all and entry"""
-    client = MPDSDataRetrieval(dtype=MPDSDataTypes.ALL, api_key=api_key)
+def get_structure_from_mpds() -> ase.Atoms:
+    """Request structures from MPDS, convert to ase.Atoms, return median structure from all"""
+    client = MPDSDataRetrieval(dtype=MPDSDataTypes.ALL)
+
     el = get_random_element()
     response = client.get_data(
         {
@@ -38,6 +42,7 @@ def get_structure_from_mpds(api_key: str) -> list:
             "classes": "unary",
             "lattices": "cubic",
         },
+
         fields=
         {'S': [
                     'entry',
@@ -49,21 +54,22 @@ def get_structure_from_mpds(api_key: str) -> list:
     )
     structs = [client.compile_crystal(line[1:], flavor='ase') for line in response]
     structs = list(filter(None, structs))
-    
+
     if not structs:
         print('No structures!')
+
     minimal_struct = min([len(s) for s in structs])
 
     # get structures with minimal number of atoms and find the one with median cell vectors
     cells = np.array([s.get_cell().reshape(9) for s in structs if len(s) == minimal_struct])
     median_cell = np.median(cells, axis=0)
     median_idx = int(np.argmin(np.sum((cells - median_cell) ** 2, axis=1) ** 0.5))
-    
+
     selected_struct = structs[median_idx]
+
     entry = [line[:1] for line in response][median_idx][0]
     
     return [selected_struct, entry]
-
 
 def submit_yascheduler_task(input_file):
     """Give task to yascheduler"""
@@ -91,8 +97,8 @@ def submit_yascheduler_task(input_file):
     yac = Yascheduler()
     result = yac.queue_submit_task(
         label,
-        {"fort.34": STRUCT_INPUT, "INPUT": SETUP_INPUT, "local_folder": None},
-        "pcrystal",
+        {"fort.34": STRUCT_INPUT, "INPUT": SETUP_INPUT, "local_folder": work_folder},
+        TARGET_ENGINE,
     )
     print(label)
     print(result)
@@ -121,15 +127,15 @@ def convert_to_pcrystal_input(dir: str, atoms_obj: list[ase.Atoms], entry: str =
         submit_yascheduler_task(input_file)
 
 if __name__ == "__main__":
-    with open('ab_initio_calculations/conf/conf.yaml', 'r') as file:
-        conf = yaml.safe_load(file)
-    api_key = conf['mpds_api_key']
-    pcrystal_input_dir = conf['pcrystal_input_dir']
-    
+    pcrystal_input_dir = "./pcrystal_inputs"
     for i in range(20):
-        atoms_obj, entry = get_structure_from_mpds(
-            api_key
-        )
+
+        try:
+            atoms_obj, entry = None or get_structure_from_mpds()
+        except APIError as ex:
+            if ex.code == 204:
+                pass
+
         convert_to_pcrystal_input(
             pcrystal_input_dir, [atoms_obj], entry
         )
