@@ -1,11 +1,9 @@
-
 import os
 import random
 
 import numpy as np
 import set_path
 from metis_backend.calculations import Calc_setup
-from metis_backend.structures.struct_utils import refine
 from mpds_client import MPDSDataRetrieval, MPDSDataTypes, APIError
 
 from yascheduler import Yascheduler
@@ -13,28 +11,45 @@ import ase
 import yaml
 
 
-
+CONF = "./conf/conf.yaml"
 TARGET_ENGINE = "pcrystal"
+
+
+def get_list_of_basis_elements() -> list:
+    """Return list with chemical elements with existing basis"""
+    with open(CONF, "r") as file:
+        dir = yaml.safe_load(file)["basis_sets_path"]
+
+    files = [
+        f.replace(".basis", "")
+        for f in os.listdir(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), dir)
+        )
+    ]
+    return files
+
 
 def get_random_element() -> list:
     """Return random chemical element for which there exists a basis"""
-    with open('/ab_initio_calculations/conf/conf.yaml', 'r') as file:
-        dir = yaml.safe_load(file)['basis_sets_path']
+    with open(CONF, "r") as file:
+        dir = yaml.safe_load(file)["basis_sets_path"]
 
-    files = [f.replace(".basis", "") for f in os.listdir(
-        os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            dir
+    files = [
+        f.replace(".basis", "")
+        for f in os.listdir(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), dir)
         )
-    )]
+    ]
     return random.choice(files)
 
 
-def get_structure_from_mpds() -> ase.Atoms:
+def get_structure_from_mpds(el: str = None) -> ase.Atoms:
     """Request structures from MPDS, convert to ase.Atoms, return median structure from all"""
     client = MPDSDataRetrieval(dtype=MPDSDataTypes.ALL)
 
-    el = get_random_element()
+    if not (el):
+        el = get_random_element()
+
     response = client.get_data(
         {
             "elements": el,
@@ -42,34 +57,29 @@ def get_structure_from_mpds() -> ase.Atoms:
             "classes": "unary",
             "lattices": "cubic",
         },
-
-        fields=
-        {'S': [
-                    'entry',
-                    'cell_abc',
-                    'sg_n',
-                    'basis_noneq',
-                    'els_noneq'
-                ]}
+        fields={"S": ["entry", "cell_abc", "sg_n", "basis_noneq", "els_noneq"]},
     )
-    structs = [client.compile_crystal(line[1:], flavor='ase') for line in response]
+    structs = [client.compile_crystal(line[1:], flavor="ase") for line in response]
     structs = list(filter(None, structs))
 
     if not structs:
-        print('No structures!')
+        print("No structures!")
 
     minimal_struct = min([len(s) for s in structs])
 
     # get structures with minimal number of atoms and find the one with median cell vectors
-    cells = np.array([s.get_cell().reshape(9) for s in structs if len(s) == minimal_struct])
+    cells = np.array(
+        [s.get_cell().reshape(9) for s in structs if len(s) == minimal_struct]
+    )
     median_cell = np.median(cells, axis=0)
     median_idx = int(np.argmin(np.sum((cells - median_cell) ** 2, axis=1) ** 0.5))
 
     selected_struct = structs[median_idx]
 
     entry = [line[:1] for line in response][median_idx][0]
-    
+
     return [selected_struct, entry]
+
 
 def submit_yascheduler_task(input_file):
     """Give task to yascheduler"""
@@ -112,10 +122,14 @@ def convert_to_pcrystal_input(dir: str, atoms_obj: list[ase.Atoms], entry: str =
         if error:
             raise RuntimeError(error)
 
-        subdir = os.path.join(dir, f"pcrystal_input_{ase_obj.get_chemical_formula()}_{entry}")
+        subdir = os.path.join(
+            dir, f"pcrystal_input_{ase_obj.get_chemical_formula()}_{entry}"
+        )
         os.makedirs(subdir, exist_ok=True)
 
-        input_file = os.path.join(subdir, f"input_{ase_obj.get_chemical_formula()}_{entry}")
+        input_file = os.path.join(
+            subdir, f"input_{ase_obj.get_chemical_formula()}_{entry}"
+        )
         fort_file = os.path.join(subdir, f"fort.34")
 
         with open(input_file, "w") as f_input:
@@ -126,16 +140,14 @@ def convert_to_pcrystal_input(dir: str, atoms_obj: list[ase.Atoms], entry: str =
         print(f"Data written to {input_file} and {fort_file}")
         submit_yascheduler_task(input_file)
 
+
 if __name__ == "__main__":
-    pcrystal_input_dir = "./pcrystal_inputs"
-    for i in range(20):
-
-        try:
-            atoms_obj, entry = None or get_structure_from_mpds()
-        except APIError as ex:
-            if ex.code == 204:
-                pass
-
-        convert_to_pcrystal_input(
-            pcrystal_input_dir, [atoms_obj], entry
-        )
+    pcrystal_input_dir = "./pcrystal_input"
+    for i in range(len(get_list_of_basis_elements())):
+        for el in get_list_of_basis_elements():
+            try:
+                atoms_obj, entry = None or get_structure_from_mpds(el)
+                convert_to_pcrystal_input(pcrystal_input_dir, [atoms_obj], entry)
+            except APIError as ex:
+                if ex.code == 204:
+                    pass
