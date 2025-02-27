@@ -17,8 +17,8 @@ TARGET_ENGINE = "pcrystal"
 
 def get_list_of_basis_elements() -> list:
     """Return list with chemical elements with existing basis"""
-    with open(CONF, 'r') as file:
-        dir = yaml.safe_load(file)['basis_sets_path']
+    with open(CONF, "r") as file:
+        dir = yaml.safe_load(file)["basis_sets_path"]
 
     files = [f.replace(".basis", "") for f in os.listdir(
         os.path.join(
@@ -30,8 +30,8 @@ def get_list_of_basis_elements() -> list:
 
 def get_random_element() -> list:
     """Return random chemical element for which there exists a basis"""
-    with open(CONF, 'r') as file:
-        dir = yaml.safe_load(file)['basis_sets_path']
+    with open(CONF, "r") as file:
+        dir = yaml.safe_load(file)["basis_sets_path"]
 
     files = [f.replace(".basis", "") for f in os.listdir(
         os.path.join(
@@ -58,20 +58,20 @@ def get_structure_from_mpds(el: str = None) -> ase.Atoms:
         },
 
         fields=
-        {'S': [
-                    'entry',
-                    'occs_noneq',
-                    'cell_abc',
-                    'sg_n',
-                    'basis_noneq',
-                    'els_noneq'
+        {"S": [
+                    "entry",
+                    "occs_noneq",
+                    "cell_abc",
+                    "sg_n",
+                    "basis_noneq",
+                    "els_noneq"
                 ]}
     )
-    structs = [client.compile_crystal(line[2:], flavor='ase') for line in response]
+    structs = [client.compile_crystal(line[2:], flavor="ase") for line in response]
     structs = list(filter(None, structs))
 
     if not structs:
-        print('No structures!')
+        print("No structures!")
 
     minimal_struct = min([len(s) for s in structs])
 
@@ -89,7 +89,7 @@ def get_structure_from_mpds(el: str = None) -> ase.Atoms:
                 entry = [line[:1] for line in response][idx][0]
                 selected_struct = structs[idx]
                 return [selected_struct, entry]
-        print('No structures were found where all atoms have constant occupancy!')
+        print("No structures were found where all atoms have constant occupancy!")
         return [False, False]
     else:       
         selected_struct = structs[median_idx]
@@ -136,9 +136,9 @@ def convert_to_pcrystal_input(dir: str, atoms_obj: list[ase.Atoms], entry: str =
     for ase_obj in atoms_obj:
         setup = Pcrystal_setup(ase_obj)
         if any([i in el_hight_tolinteg for i in list(ase_obj.symbols)]):
-            setup.calc_setup['default']['crystal']['scf']['numerical']['TOLINTEG'] = '8 8 8 8 16'
-        elif any([i == 'Sb' for i in list(ase_obj.symbols)]):
-            setup.calc_setup['default']['crystal']['scf']['numerical']['TOLINTEG'] = '10 10 10 10 16'
+            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLINTEG"] = "8 8 8 8 16"
+        elif any([i == "Sb" for i in list(ase_obj.symbols)]):
+            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLINTEG"] = "10 10 10 10 16"
         input = setup.get_input_setup("test " + entry)
         fort34 = setup.get_input_struct()
 
