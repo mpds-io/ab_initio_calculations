@@ -3,4 +3,4 @@ py7zr
 requests
 yascheduler
 mpds_client
-git+https://github.com/basf/metis-backend
+absolidix_client
