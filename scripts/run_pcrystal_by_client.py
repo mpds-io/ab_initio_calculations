@@ -6,12 +6,12 @@ import random
 import ase
 import ase.io
 import numpy as np
-from ab_initio_calculations.utils.pcrystal import Pcrystal_setup
 from absolidix_client import AbsolidixAPIAsync, AbsolidixTokenAuth
 from mpds_client import APIError, MPDSDataRetrieval, MPDSDataTypes
-from yascheduler import Yascheduler
 
 from ab_initio_calculations.settings import Settings
+from ab_initio_calculations.utils.pcrystal import Pcrystal_setup
+from yascheduler import Yascheduler
 
 settings = Settings()
 API_URL = "http://localhost:3000"
@@ -150,13 +150,13 @@ def convert_to_pcrystal_and_run(
     for ase_obj in atoms_obj:
         setup = Pcrystal_setup(ase_obj)
         if any([i in el_hight_tolinteg for i in list(ase_obj.symbols)]):
-            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLINTEG"] = (
-                "8 8 8 8 16"
-            )
+            setup.calc_setup["default"]["crystal"]["scf"]["numerical"][
+                "TOLINTEG"
+            ] = "8 8 8 8 16"
         elif any([i == "Sb" for i in list(ase_obj.symbols)]):
-            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLINTEG"] = (
-                "10 10 10 10 16"
-            )
+            setup.calc_setup["default"]["crystal"]["scf"]["numerical"][
+                "TOLINTEG"
+            ] = "10 10 10 10 16"
         input = setup.get_input_setup("test " + entry)
         fort34 = setup.get_input_struct()
 

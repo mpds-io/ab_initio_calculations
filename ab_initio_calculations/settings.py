@@ -14,4 +14,3 @@ class Settings:
 
         self.basis_sets_dir = self.config.get("paths", "basis_sets_dir")
         self.pcrystal_input_dir = self.config.get("paths", "pcrystal_input_dir")
-
