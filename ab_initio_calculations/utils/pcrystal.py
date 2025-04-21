@@ -9,16 +9,6 @@ from ase.data import chemical_symbols
 
 from ab_initio_calculations.settings import Settings
 
-
-class Data_type:
-    structure = 1
-    calculation = 2
-    property = 3
-    workflow = 4
-    pattern = 5
-    user_input = 6
-
-
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
 ELS_REPO_DIR = Settings().basis_sets_dir
 
