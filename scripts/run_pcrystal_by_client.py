@@ -6,21 +6,21 @@ import random
 import ase
 import ase.io
 import numpy as np
-import yaml
-from absolidix_backend.calculations import Pcrystal_setup
+from ab_initio_calculations.utils.pcrystal import Pcrystal_setup
 from absolidix_client import AbsolidixAPIAsync, AbsolidixTokenAuth
 from mpds_client import APIError, MPDSDataRetrieval, MPDSDataTypes
 from yascheduler import Yascheduler
 
-CONF = "./ab_initio_calculations/conf/conf.yaml"
+from ab_initio_calculations.settings import Settings
+
+settings = Settings()
 API_URL = "http://localhost:3000"
 TARGET_ENGINE = "pcrystal"
 
 
 def get_list_of_basis_elements() -> list:
     """Return list with chemical elements with existing basis"""
-    with open(CONF, "r") as file:
-        dir = yaml.safe_load(file)["basis_sets_path"]
+    dir = settings.basis_sets_dir
 
     files = [
         f.replace(".basis", "")
@@ -33,8 +33,7 @@ def get_list_of_basis_elements() -> list:
 
 def get_random_element() -> list:
     """Return random chemical element for which there exists a basis"""
-    with open(CONF, "r") as file:
-        dir = yaml.safe_load(file)["basis_sets_path"]
+    dir = settings.basis_sets_dir
 
     files = [
         f.replace(".basis", "")
@@ -235,5 +234,5 @@ def run_with_custom_d12(pcrystal_input_dir: os.PathLike, el: str):
 
 if __name__ == "__main__":
     for el in get_list_of_basis_elements():
-        path = "./pcrystal_input"
+        path = settings.pcrystal_input_dir
         run_with_custom_d12(path, el)
