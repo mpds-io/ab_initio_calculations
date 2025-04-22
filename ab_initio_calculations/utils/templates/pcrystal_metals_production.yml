@@ -1,0 +1,32 @@
+codes:
+  crystal:
+    Pcrystal@yascheduler
+
+options:
+  need_phonons: false
+  need_elastic_constants: false
+  need_properties: false
+
+basis_family: MPDSBSL_NEUTRAL_24
+
+default:
+  crystal:
+    scf:
+      k_points: [18, 54]
+      dft:
+        SPIN: True
+        xc: PBE0
+        grid: XLGRID
+        numerical:
+          TOLLDENS: 8
+          TOLLGRID: 16
+      numerical:
+        TOLDEE: 9
+        BIPOSIZE: 256000000
+        EXCHSIZE: 256000000 
+        TOLINTEG: [20, 20, 20, 20, 40]
+        FMIXING: 80
+        SMEAR: 0.001
+        MAXCYCLE: 500
+      fock_mixing: ANDERSON
+      post_scf: ['PPAN']
