@@ -3,7 +3,7 @@ import os
 
 
 class Settings:
-    def __init__(self, config_path="ab_initio_calculations/conf/conf.ini"):
+    def __init__(self, config_path="conf/conf.ini"):
         self.config = configparser.ConfigParser()
         if not os.path.exists(config_path):
             raise FileNotFoundError(f"Config file not found at {config_path}")

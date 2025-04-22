@@ -9,7 +9,9 @@ from ase.data import chemical_symbols
 
 from ab_initio_calculations.settings import Settings
 
-TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
+TEMPLATE_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "conf/templates"
+)
 ELS_REPO_DIR = Settings().basis_sets_dir
 
 verbatim_basis = namedtuple("basis", field_names="content, all_electron")
@@ -110,3 +112,4 @@ class Pcrystal_setup:
                 label,
             )
         )
+        
