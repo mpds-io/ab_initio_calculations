@@ -2,6 +2,7 @@ import asyncio
 import io
 import os
 import random
+import time
 
 import ase
 import ase.io
@@ -12,6 +13,8 @@ from mpds_client import APIError, MPDSDataRetrieval, MPDSDataTypes
 from ab_initio_calculations.settings import Settings
 from ab_initio_calculations.utils.pcrystal import Pcrystal_setup
 from yascheduler import Yascheduler
+from ab_initio_calculations.utils.chemical_utils import guess_metal
+
 
 settings = Settings()
 API_URL = "http://localhost:3000"
@@ -143,12 +146,23 @@ def convert_to_pcrystal_and_run(
     atoms_obj: list[ase.Atoms],
     entry: str = None,
     run_yascheduler: bool = False,
+    use_demo_template: bool = True,
 ):
     """Convert structures from ase.Atoms to Pcrystal input format (d12, fort.34)"""
     el_hight_tolinteg = ["Ta", "Se", "P"]
 
     for ase_obj in atoms_obj:
-        setup = Pcrystal_setup(ase_obj)
+        
+        if not(use_demo_template):
+            is_metall = guess_metal(ase_obj)
+            if is_metall:
+                template = "pcrystal_metals_production.yml"
+            else:
+                template = "pcrystal_nonmetals_production.yml"   
+            setup = Pcrystal_setup(ase_obj, template)
+        else:
+            setup = Pcrystal_setup(ase_obj)
+            
         if any([i in el_hight_tolinteg for i in list(ase_obj.symbols)]):
             setup.calc_setup["default"]["crystal"]["scf"]["numerical"][
                 "TOLINTEG"
@@ -214,7 +228,7 @@ async def run_by_absolidix_client(input, fort34, poscar_content):
         await create_calc_and_get_results(client, poscar_content, content)
 
 
-def run_with_custom_d12(pcrystal_input_dir: os.PathLike, el: str):
+def run_with_custom_d12(pcrystal_input_dir: os.PathLike, el: str, use_demo_template: bool = True):
     """Run task by the chain: MPDS -> create d12 -> Absolidix client"""
     atoms_obj, entry = get_structure_from_mpds(el)
     if atoms_obj is None:
@@ -227,12 +241,20 @@ def run_with_custom_d12(pcrystal_input_dir: os.PathLike, el: str):
 
     if atoms_obj:
         input, fort34 = convert_to_pcrystal_and_run(
-            pcrystal_input_dir, [atoms_obj], entry, run_yascheduler=False
+            pcrystal_input_dir, [atoms_obj], entry, run_yascheduler=False, use_demo_template=use_demo_template
         )
         asyncio.run(run_by_absolidix_client(input, fort34, poscar_content))
 
 
 if __name__ == "__main__":
+    # use templates for production
+    use_demo_template = False
+    
     for el in get_list_of_basis_elements():
+        start_time = time.time()
         path = settings.pcrystal_input_dir
-        run_with_custom_d12(path, el)
+        run_with_custom_d12(path, el, use_demo_template)
+        end_time = time.time()
+        print('Succes! Elapsed time: ', end_time - start_time)
+
+
