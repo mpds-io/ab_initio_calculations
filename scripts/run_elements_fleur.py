@@ -61,7 +61,7 @@ OPTIONS = Dict(
             "num_cores_per_mpiproc": 4,
         },
         "queue_name": "devel",
-        "max_wallclock_seconds": 10 * 60 * 6000,  # 10 hours
+        "max_wallclock_seconds": 10 * 3600,  # 10 hours
     }
 )
 
@@ -82,7 +82,7 @@ def find_nodes(fleur_node_label, inpgen_node_label):
     return data
 
 
-# (Took it) from Alina`s code
+# Taken from Alina's code
 def get_structure_from_mpds(el: str) -> ase.Atoms:
     """Request structures from MPDS, convert to ase.Atoms, return median structure from all"""
 
