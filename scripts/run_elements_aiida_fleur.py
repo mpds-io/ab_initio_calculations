@@ -1,6 +1,4 @@
-# This script is emplemented to run the calculations elements via AiiDA-Fleur
-# It`s expected to be used for testing or educations purposes
-# Is is expected that the user has already set up the AiiDA-Fleur environment
+# the AiiDA-Fleur environment is expected to be already set up
 import os
 import random
 
@@ -82,7 +80,7 @@ def find_nodes(fleur_node_label, inpgen_node_label):
     return data
 
 
-# Taken from Alina's code
+# TODO refactor
 def get_structure_from_mpds(el: str) -> ase.Atoms:
     """Request structures from MPDS, convert to ase.Atoms, return median structure from all"""
 
