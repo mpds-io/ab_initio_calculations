@@ -47,22 +47,6 @@ def get_random_element() -> list:
     return random.choice(files)
 
 
-def get_structure_from_mpds(el: str = None) -> tuple[Atoms, str]:
-    """Main function to get structure from MPDS
-
-    Args:
-        el: Element symbol (optional)
-
-    Returns:
-        tuple: (ASE Atoms structure, entry) or (None, None) if error
-    """
-    structs, response, el = download_structures(el)
-    if structs is None:
-        return None, None
-
-    return process_structures(structs, response)
-
-
 def submit_yascheduler_task(input_file):
     """Give task to yascheduler"""
     target = os.path.abspath(input_file)
@@ -189,7 +173,11 @@ def run_with_custom_d12(
     pcrystal_input_dir: os.PathLike, el: str, use_demo_template: bool = True
 ):
     """Run task by the chain: MPDS -> create d12 -> Absolidix client"""
-    atoms_obj, entry = get_structure_from_mpds(el)
+    structs, response, el = download_structures(el)
+    if structs is None:
+        return None, None
+    atoms_obj, entry = process_structures(structs, response)
+    
     if atoms_obj is None:
         print(f"[WARNING] Skipping element {el} due to missing data.")
         return

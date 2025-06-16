@@ -81,22 +81,6 @@ def find_nodes(fleur_node_label, inpgen_node_label):
     return data
 
 
-def get_structure_from_mpds(el: str = None) -> tuple[Atoms, str]:
-    """Main function to get structure from MPDS
-
-    Args:
-        el: Element symbol (optional)
-
-    Returns:
-        tuple: (ASE Atoms structure, entry) or (None, None) if error
-    """
-    structs, response, el = download_structures(el)
-    if structs is None:
-        return None, None
-
-    return process_structures(structs, response)
-
-
 def submit_aiida_fleur_task(
     structure: ase.Atoms, wf_parameters: dict, options: dict, wf_relax: dict
 ):
@@ -136,7 +120,12 @@ if __name__ == "__main__":
     for el in random.choices(CHEMICAL_ELEMENTS, k=5):
         print(f"Processing element: {el}")
         # Get structure from MPDS
-        structure, entry = get_structure_from_mpds(el)
+        structs, response, el = download_structures(el)
+        if structs is None:
+            print(f"[WARNING] Skipping element {el} due to missing data.")
+            continue
+        structure, entry = process_structures(structs, response)
+        
         if structure:
             print(f"Structure for {el} retrieved successfully.")
             submit_aiida_fleur_task(
