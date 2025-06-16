@@ -3,6 +3,11 @@ from math import log
 import numpy as np
 import requests
 
+import os
+import random
+from ab_initio_calculations.settings import Settings
+
+
 ab_props_mapping = {
     "electrical conductivity": "TRANSPORT/SIGMA.DAT",
     "Seebeck coefficient": "TRANSPORT/SEEBECK.DAT",
@@ -142,3 +147,18 @@ def ase_to_optimade(ase_obj, name_id=None):
         )
         result["attributes"]["species_at_sites"].append(atom.symbol)
     return dict(data=[result])
+
+
+def get_random_element() -> list:
+    """Return random chemical element for which there exists a basis"""
+    settings = Settings()
+    
+    dir = settings.basis_sets_dir
+
+    files = [
+        f.replace(".basis", "")
+        for f in os.listdir(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), dir)
+        )
+    ]
+    return random.choice(files)
