@@ -6,12 +6,14 @@ import time
 import py7zr
 import requests
 from mpds_client import MPDSDataRetrieval, MPDSDataTypes
-from utils import get_props_folders_map
+from ab_initio_calculations.mpds.utils import get_props_folders_map
+from mpds_client.errors import APIError
+from ase import Atoms
 
 
-def mpds_archives_processing(api_key, arch_dir = "./mpds_archives/"):
+def download_and_process_archives(arch_dir = "./mpds_archives/"):
     """Downloads MPDS archives, extracts and validates them."""
-    mpds_api = MPDSDataRetrieval(dtype=MPDSDataTypes.AB_INITIO, api_key=api_key)
+    mpds_api = MPDSDataRetrieval(dtype=MPDSDataTypes.AB_INITIO)
     result_count = {}
 
     for prop in get_props_folders_map().keys():
@@ -66,7 +68,52 @@ def mpds_archives_processing(api_key, arch_dir = "./mpds_archives/"):
 
     print("Result: ", result_count)
     
+
+def download_structures(el: str = None) -> tuple[list[Atoms], list[list], str]:
+    """Request structures from MPDS and return raw data
+    
+    Args:
+        el: Element symbol (optional)
+        
+    Returns:
+        tuple: (list of ASE Atoms structures, raw response data, element symbol)
+    """
+    client = MPDSDataRetrieval(dtype=MPDSDataTypes.ALL)
+    
+    if not el:
+        from utils import get_random_element  # here to avoid circular import issues
+        el = get_random_element()
+    
+    try:
+        response = client.get_data(
+            {
+                "elements": el,
+                "props": "atomic structure",
+                "classes": "unary",
+                "lattices": "cubic",
+            },
+            fields={
+                "S": [
+                    "entry",
+                    "occs_noneq",
+                    "cell_abc",
+                    "sg_n",
+                    "basis_noneq",
+                    "els_noneq",
+                ]
+            },
+        )
+        
+        structs = [client.compile_crystal(line[2:], flavor="ase") for line in response]
+        structs = list(filter(None, structs))
+        
+        return structs, response, el
+        
+    except APIError as e:
+        print(f"[ERROR] MPDS API error for element {el}: {e}")
+        return None, None, el
+    
+    
 if __name__ == "__main__":
     # example
-    # replace 'your_api_key' with your actual MPDS API key
-    mpds_archives_processing(api_key="your_api_key", arch_dir="./mpds_archives/")
+    download_and_process_archives(arch_dir="./mpds_archives/")

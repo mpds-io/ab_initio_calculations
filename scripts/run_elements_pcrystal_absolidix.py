@@ -6,14 +6,17 @@ import time
 
 import ase
 import ase.io
-import numpy as np
 from absolidix_client import AbsolidixAPIAsync, AbsolidixTokenAuth
-from mpds_client import APIError, MPDSDataRetrieval, MPDSDataTypes
+from ase import Atoms
+import numpy as np
 
+
+from ab_initio_calculations.mpds.receiver import download_structures
 from ab_initio_calculations.settings import Settings
-from ab_initio_calculations.utils.pcrystal import Pcrystal_setup
-from yascheduler import Yascheduler
 from ab_initio_calculations.utils.chemical_utils import guess_metal
+from ab_initio_calculations.utils.pcrystal import Pcrystal_setup
+from ab_initio_calculations.utils.structure_processor import process_structures
+from yascheduler import Yascheduler
 
 
 settings = Settings()
@@ -47,66 +50,20 @@ def get_random_element() -> list:
     return random.choice(files)
 
 
-# TODO refactor
-def get_structure_from_mpds(el: str = None) -> ase.Atoms:
-    """Request structures from MPDS, convert to ase.Atoms, return median structure from all"""
-    client = MPDSDataRetrieval(dtype=MPDSDataTypes.ALL)
+def get_structure_from_mpds(el: str = None) -> tuple[Atoms, str]:
+    """Main function to get structure from MPDS
 
-    if not (el):
-        el = get_random_element()
-    try:
-        response = client.get_data(
-            {
-                "elements": el,
-                "props": "atomic structure",
-                "classes": "unary",
-                "lattices": "cubic",
-            },
-            fields={
-                "S": [
-                    "entry",
-                    "occs_noneq",
-                    "cell_abc",
-                    "sg_n",
-                    "basis_noneq",
-                    "els_noneq",
-                ]
-            },
-        )
-        structs = [client.compile_crystal(line[2:], flavor="ase") for line in response]
-        structs = list(filter(None, structs))
+    Args:
+        el: Element symbol (optional)
 
-        if not structs:
-            print("No structures!")
-
-        minimal_struct = min([len(s) for s in structs])
-
-        # get structures with minimal number of atoms and find the one with median cell vectors
-        cells = np.array(
-            [s.get_cell().reshape(9) for s in structs if len(s) == minimal_struct]
-        )
-        median_cell = np.median(cells, axis=0)
-        median_idx = int(np.argmin(np.sum((cells - median_cell) ** 2, axis=1) ** 0.5))
-
-        response = [item for item in response if item != []]
-        occs_noneq = [[line[1]] for line in response][median_idx][0]
-
-        # check: all atoms have constant occupancy
-        if any([occ for occ in occs_noneq if occ != 1]):
-            for idx, res in enumerate(response):
-                if all([item == 1 for item in res[1]]):
-                    entry = [line[:1] for line in response][idx][0]
-                    selected_struct = structs[idx]
-                    return [selected_struct, entry]
-            print("No structures were found where all atoms have constant occupancy!")
-            return [False, False]
-        else:
-            selected_struct = structs[median_idx]
-            entry = [line[:1] for line in response][median_idx][0]
-            return [selected_struct, entry]
-    except APIError as e:
-        print(f"[ERROR] MPDS API error for element {el}: {e}")
+    Returns:
+        tuple: (ASE Atoms structure, entry) or (None, None) if error
+    """
+    structs, response, el = download_structures(el)
+    if structs is None:
         return None, None
+
+    return process_structures(structs, response)
 
 
 def submit_yascheduler_task(input_file):
@@ -154,7 +111,7 @@ def convert_to_pcrystal_and_run(
 
     for ase_obj in atoms_obj:
 
-        if not(use_demo_template):
+        if not (use_demo_template):
             is_metall = guess_metal(ase_obj)
             if is_metall:
                 template = "pcrystal_metals_production.yml"
@@ -231,7 +188,9 @@ async def run_by_absolidix_client(input, fort34, poscar_content):
         await create_calc_and_get_results(client, poscar_content, content)
 
 
-def run_with_custom_d12(pcrystal_input_dir: os.PathLike, el: str, use_demo_template: bool = True):
+def run_with_custom_d12(
+    pcrystal_input_dir: os.PathLike, el: str, use_demo_template: bool = True
+):
     """Run task by the chain: MPDS -> create d12 -> Absolidix client"""
     atoms_obj, entry = get_structure_from_mpds(el)
     if atoms_obj is None:
@@ -244,7 +203,11 @@ def run_with_custom_d12(pcrystal_input_dir: os.PathLike, el: str, use_demo_templ
 
     if atoms_obj:
         input, fort34 = convert_to_pcrystal_and_run(
-            pcrystal_input_dir, [atoms_obj], entry, run_yascheduler=False, use_demo_template=use_demo_template
+            pcrystal_input_dir,
+            [atoms_obj],
+            entry,
+            run_yascheduler=False,
+            use_demo_template=use_demo_template,
         )
         asyncio.run(run_by_absolidix_client(input, fort34, poscar_content))
 
@@ -258,6 +221,4 @@ if __name__ == "__main__":
         path = settings.pcrystal_input_dir
         run_with_custom_d12(path, el, use_demo_template)
         end_time = time.time()
-        print('Success! Elapsed time: ', end_time - start_time)
-
-
+        print("Success! Elapsed time: ", end_time - start_time)
