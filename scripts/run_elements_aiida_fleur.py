@@ -7,10 +7,10 @@ from aiida.engine import submit
 from aiida.orm import Dict, QueryBuilder, StructureData, load_node
 from aiida.orm.nodes.data.code import Code
 from aiida_fleur.workflows.relax import FleurRelaxWorkChain
-from ab_initio_calculations.mpds.receiver import download_structures
-from ab_initio_calculations.utils.structure_processor import process_structures
 from ase import Atoms
 
+from ab_initio_calculations.mpds.receiver import download_structures
+from ab_initio_calculations.utils.structure_processor import process_structures
 
 load_profile()
 

@@ -8,8 +8,6 @@ import ase
 import ase.io
 from absolidix_client import AbsolidixAPIAsync, AbsolidixTokenAuth
 from ase import Atoms
-import numpy as np
-
 
 from ab_initio_calculations.mpds.receiver import download_structures
 from ab_initio_calculations.settings import Settings
@@ -17,7 +15,6 @@ from ab_initio_calculations.utils.chemical_utils import guess_metal
 from ab_initio_calculations.utils.pcrystal import Pcrystal_setup
 from ab_initio_calculations.utils.structure_processor import process_structures
 from yascheduler import Yascheduler
-
 
 settings = Settings()
 API_URL = "http://localhost:3000"
