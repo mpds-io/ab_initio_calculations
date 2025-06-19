@@ -7,11 +7,11 @@ import time
 import ase
 import ase.io
 from absolidix_client import AbsolidixAPIAsync, AbsolidixTokenAuth
-from ase import Atoms
 
 from ab_initio_calculations.mpds.receiver import download_structures
 from ab_initio_calculations.settings import Settings
-from ab_initio_calculations.utils.chemical_utils import guess_metal, get_list_of_basis_elements
+from ab_initio_calculations.utils.chemical_utils import (
+    get_list_of_basis_elements, guess_metal)
 from ab_initio_calculations.utils.pcrystal import Pcrystal_setup
 from ab_initio_calculations.utils.structure_processor import process_structures
 from yascheduler import Yascheduler
@@ -151,7 +151,7 @@ def run_with_custom_d12(
     if structs is None:
         return None, None
     atoms_obj, entry = process_structures(structs, response)
-    
+
     if atoms_obj is None:
         print(f"[WARNING] Skipping element {el} due to missing data.")
         return

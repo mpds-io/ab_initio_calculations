@@ -1,9 +1,12 @@
-import ase
 import os
 import random
+
+import ase
+
 from ab_initio_calculations.settings import Settings
 
 settings = Settings()
+
 
 def get_list_of_basis_elements() -> list:
     """Return list with chemical elements with existing basis"""
@@ -52,14 +55,34 @@ def guess_metal(ase_obj) -> bool:
     returns bool
     """
     non_metallic_atoms = {
-    'H',                                  'He',
-    'Be',   'B',  'C',  'N',  'O',  'F',  'Ne',
-                  'Si', 'P',  'S',  'Cl', 'Ar',
-                  'Ge', 'As', 'Se', 'Br', 'Kr',
-                        'Sb', 'Te', 'I',  'Xe',
-                              'Po', 'At', 'Rn',
-                                          'Og'
+        "H",
+        "He",
+        "Be",
+        "B",
+        "C",
+        "N",
+        "O",
+        "F",
+        "Ne",
+        "Si",
+        "P",
+        "S",
+        "Cl",
+        "Ar",
+        "Ge",
+        "As",
+        "Se",
+        "Br",
+        "Kr",
+        "Sb",
+        "Te",
+        "I",
+        "Xe",
+        "Po",
+        "At",
+        "Rn",
+        "Og",
     }
-    return not any([el for el in set(ase_obj.get_chemical_symbols()) if el in non_metallic_atoms])
-
-
+    return not any(
+        [el for el in set(ase_obj.get_chemical_symbols()) if el in non_metallic_atoms]
+    )
