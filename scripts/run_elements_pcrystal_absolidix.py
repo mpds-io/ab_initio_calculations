@@ -11,7 +11,7 @@ from ase import Atoms
 
 from ab_initio_calculations.mpds.receiver import download_structures
 from ab_initio_calculations.settings import Settings
-from ab_initio_calculations.utils.chemical_utils import guess_metal
+from ab_initio_calculations.utils.chemical_utils import guess_metal, get_list_of_basis_elements
 from ab_initio_calculations.utils.pcrystal import Pcrystal_setup
 from ab_initio_calculations.utils.structure_processor import process_structures
 from yascheduler import Yascheduler
@@ -19,32 +19,6 @@ from yascheduler import Yascheduler
 settings = Settings()
 API_URL = "http://localhost:3000"
 TARGET_ENGINE = "pcrystal"
-
-
-def get_list_of_basis_elements() -> list:
-    """Return list with chemical elements with existing basis"""
-    dir = settings.basis_sets_dir
-
-    files = [
-        f.replace(".basis", "")
-        for f in os.listdir(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), dir)
-        )
-    ]
-    return files
-
-
-def get_random_element() -> list:
-    """Return random chemical element for which there exists a basis"""
-    dir = settings.basis_sets_dir
-
-    files = [
-        f.replace(".basis", "")
-        for f in os.listdir(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), dir)
-        )
-    ]
-    return random.choice(files)
 
 
 def submit_yascheduler_task(input_file):

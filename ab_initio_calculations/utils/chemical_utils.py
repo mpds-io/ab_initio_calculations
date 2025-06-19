@@ -1,4 +1,34 @@
 import ase
+import os
+import random
+from ab_initio_calculations.settings import Settings
+
+settings = Settings()
+
+def get_list_of_basis_elements() -> list:
+    """Return list with chemical elements with existing basis"""
+    dir = settings.basis_sets_dir
+
+    files = [
+        f.replace(".basis", "")
+        for f in os.listdir(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), dir)
+        )
+    ]
+    return files
+
+
+def get_random_element() -> list:
+    """Return random chemical element for which there exists a basis"""
+    dir = settings.basis_sets_dir
+
+    files = [
+        f.replace(".basis", "")
+        for f in os.listdir(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), dir)
+        )
+    ]
+    return random.choice(files)
 
 
 def define_same_structures(structures: list[dict]) -> list[dict]:
