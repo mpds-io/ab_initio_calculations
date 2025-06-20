@@ -22,7 +22,7 @@ yac = Yascheduler()
 
 
 class Fleur_setup:
-    """Class to prepare Fleur input for inpgen."""
+    """Class to prepare input for inpgen."""
     def __init__(self, ase_obj):
         self.ase_obj = ase_obj
 
