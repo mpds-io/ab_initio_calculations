@@ -85,17 +85,15 @@ def run_by_yascheduler(el: str):
     """Run task by the chain: MPDS -> create fleur input -> Yascheduler -> Fleur"""
     structs, response, el = download_structures(el)
     if structs is None:
-        return None, None
+        print(f"[WARNING] Skipping element {el} due to missing data.")
+        return
     atoms_obj, _ = process_structures(structs, response)
 
     if atoms_obj is None:
-        print(f"[WARNING] Skipping element {el} due to missing data.")
         return
 
     setup = Fleur_setup(atoms_obj)
     error = setup.validate()
-    if error:
-        return None, error
 
     inputs = {
         "inp.xml": setup.get_input_setup("fleur test"),
