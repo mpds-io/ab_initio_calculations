@@ -94,15 +94,12 @@ def run_by_yascheduler(el: str):
 
     setup = Fleur_setup(atoms_obj)
     error = setup.validate()
+    if error:
+        raise RuntimeError(error)
 
     inputs = {
         "inp.xml": setup.get_input_setup("fleur test"),
     }
-    if error:
-        raise RuntimeError(error)
-
-    print(inputs["inp.xml"])
-
     result = yac.queue_submit_task(
         str(atoms_obj.symbols),
         inputs,
