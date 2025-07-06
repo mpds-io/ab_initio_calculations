@@ -1,3 +1,5 @@
+import asyncio
+import io
 import logging
 import os
 import subprocess
@@ -5,24 +7,31 @@ import tempfile
 import time
 from io import StringIO
 
+import ase
+import ase.io
+from absolidix_client import AbsolidixAPIAsync, AbsolidixTokenAuth
 from ase import Atoms
 from ase.io import write as ase_write
 
 from ab_initio_calculations.mpds.receiver import download_structures
 from ab_initio_calculations.settings import Settings
-from ab_initio_calculations.utils.chemical_utils import \
-    get_list_of_basis_elements
+from ab_initio_calculations.utils.chemical_utils import get_list_of_basis_elements
 from ab_initio_calculations.utils.structure_processor import process_structures
 from yascheduler import Yascheduler
 
+TARGET_ENGINE = "fleur"
+API_URL = "http://localhost:3000"
+
 # set correct path here
 FLEUR_INPGEN_PATH = "/root/fleur/build/inpgen"
+
 settings = Settings()
 yac = Yascheduler()
 
 
 class Fleur_setup:
     """Class to prepare input for inpgen."""
+
     def __init__(self, ase_obj):
         self.ase_obj = ase_obj
 
@@ -111,10 +120,66 @@ def run_by_yascheduler(el: str):
     print(f"Task for {el} submitted with ID: {result}")
 
 
+async def create_calc_and_get_results(
+    client: AbsolidixAPIAsync, poscar_content: str, input: list
+):
+    "Create data source, run calculation and wait for the results"
+
+    data = await client.v0.datasources.create(poscar_content)
+    assert data
+
+    results = await client.v0.calculations.create_get_results(
+        data["id"], engine=TARGET_ENGINE, input=input
+    )
+    print(results)
+    assert results
+    print("=" * 50 + "Test passed")
+
+
+async def start_absolidix_calculation(content, poscar_content):
+    """Start calculation using Absolidix client"""
+
+    async with AbsolidixAPIAsync(
+        API_URL, auth=AbsolidixTokenAuth("admin@test.com")
+    ) as client:
+        print(await client.v0.auth.whoami())
+        print(
+            "The following engines are available:",
+            await client.calculations.supported(),
+        )
+        await create_calc_and_get_results(client, poscar_content, content)
+
+
+def run_by_absolidix(el: str):
+    """Run task by the chain: MPDS -> Absolidix -> Fleur -> Absolidix"""
+    structs, response, el = download_structures(el)
+    if structs is None:
+        print(f"[WARNING] Skipping element {el} due to missing data.")
+        return
+    atoms_obj, _ = process_structures(structs, response)
+
+    if atoms_obj is None:
+        return
+
+    setup = Fleur_setup(atoms_obj)
+    error = setup.validate()
+
+    inputs = {
+        "inp.xml": setup.get_input_setup("fleur test"),
+    }
+    if error:
+        raise RuntimeError(error)
+    else:
+        with io.StringIO() as fd:
+            ase.io.write(fd, atoms_obj, format="vasp")
+            poscar_content = fd.getvalue()
+
+        asyncio.run(start_absolidix_calculation(inputs, poscar_content))
+
+
 if __name__ == "__main__":
     for el in get_list_of_basis_elements():
         start_time = time.time()
-        path = settings.pcrystal_input_dir
-        run_by_yascheduler(el)
+        run_by_absolidix(el)
         end_time = time.time()
         print("Success! Elapsed time: ", end_time - start_time)
