@@ -46,25 +46,24 @@ def submit_yascheduler_task(input_file):
     
 def main():
     pcrystal_task_dir = "./pcrystal_tasks_yascheduler"
-    for i in range(len(get_list_of_basis_elements())):
-        for el in get_list_of_basis_elements():
-            try:
-                structs, response, el = download_structures(el)
-                if structs is None:
-                    print(f"[WARNING] Skipping element {el} due to missing data.")
-                    continue
-                atoms_obj, _ = process_structures(structs, response)
+    for el in get_list_of_basis_elements():
+        try:
+            structs, response, el = download_structures(el)
+            if structs is None:
+                print(f"[WARNING] Skipping element {el} due to missing data.")
+                continue
+            atoms_obj, _ = process_structures(structs, response)
 
-                if atoms_obj is None:
-                    continue
-                if atoms_obj:
-                    task_path = convert_to_pcrystal_input(
-                        pcrystal_task_dir, [atoms_obj], 'test_' + el
-                    )
-                    submit_yascheduler_task(task_path)
-            except APIError as ex:
-                if ex.code == 204:
-                    pass
+            if atoms_obj is None:
+                continue
+            if atoms_obj:
+                task_path = convert_to_pcrystal_input(
+                    pcrystal_task_dir, [atoms_obj], 'test_' + el
+                )
+                submit_yascheduler_task(task_path)
+        except APIError as ex:
+            if ex.code == 204:
+                pass
 
 
 if __name__ == "__main__":

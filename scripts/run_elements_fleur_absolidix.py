@@ -1,8 +1,6 @@
 import asyncio
-import io
 import time
 
-import ase.io
 from absolidix_client import AbsolidixAPIAsync, AbsolidixTokenAuth
 
 from ab_initio_calculations.mpds.receiver import download_structures
