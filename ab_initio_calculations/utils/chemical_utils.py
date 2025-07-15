@@ -1,12 +1,19 @@
 import os
 import random
-
+import io
 import ase
 
 from ab_initio_calculations.settings import Settings
 
 settings = Settings()
 
+
+def get_poscar_content(atoms_obj) -> str:
+    """Convert ASE atoms object to POSCAR string."""
+    with io.StringIO() as fd:
+        ase.io.write(fd, atoms_obj, format="vasp")
+        return fd.getvalue()
+    
 
 def get_list_of_basis_elements() -> list:
     """Return list with chemical elements with existing basis"""
