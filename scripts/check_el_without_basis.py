@@ -1,8 +1,8 @@
 import os
 
 import periodictable
-from ab_initio_calculations.settings import Settings
 
+from ab_initio_calculations.settings import Settings
 
 if __name__ == "__main__":
     dir = Settings().basis_sets_dir

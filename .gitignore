@@ -1,20 +1,23 @@
-# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
-# C extensions
 *.so
+*.error
+*.out
 
-# Distribution / packaging
 *INPUT
 *fort.34
 *OUTPUT
+*.xml
 *.7z
 *.cif
+*cdn1
 *.d12
 *fort.9
 *.json
+*out
+
 *fort.7
 *fort.87
 .Python
@@ -180,7 +183,13 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-
 data/
+mpds_archives/
+pcrystal_input
+metis_backend/
+output
 conf/env.ini
 pcrystal_inputs
+qe-7.4.1
+*.pdf
+engine/

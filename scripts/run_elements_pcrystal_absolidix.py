@@ -11,8 +11,10 @@ from absolidix_client import AbsolidixAPIAsync, AbsolidixTokenAuth
 from ab_initio_calculations.mpds.receiver import download_structures
 from ab_initio_calculations.settings import Settings
 from ab_initio_calculations.utils.chemical_utils import (
-    get_list_of_basis_elements, guess_metal)
-from ab_initio_calculations.utils.pcrystal import Pcrystal_setup
+    get_list_of_basis_elements,
+    guess_metal,
+)
+from ab_initio_calculations.utils.pcrystal_utils import Pcrystal_setup
 from ab_initio_calculations.utils.structure_processor import process_structures
 from yascheduler import Yascheduler
 
