@@ -1,8 +1,10 @@
 import logging
 import os
+import shutil
 import subprocess
 import tempfile
 from io import StringIO
+from pathlib import Path
 
 from ase import Atoms
 from ase.io import write as ase_write
@@ -67,4 +69,41 @@ class Fleur_setup:
 
         return xml_input
     
-    
+
+def convert_inp_to_xml(inp_file: Path):
+    inp_dir = inp_file.parent
+    name_stem = inp_file.stem
+    output_base_dir = inp_dir / "xml"
+
+    print(f"Processing {inp_file.name}...")
+    output_base_dir.mkdir(parents=True, exist_ok=True)
+
+    result = subprocess.run(
+        [os.environ['FLEUR_INPGEN_PATH'], "-f", str(inp_file)],
+        cwd=inp_dir
+    )
+
+    if result.returncode != 0:
+        print(f"Error while processing {inp_file.name}")
+        return None
+
+    generated_xml = inp_dir / "inp.xml"
+    if not generated_xml.exists():
+        print(f"inp.xml not found for {inp_file.name}")
+        return None
+
+    out_dir = output_base_dir / name_stem
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_file = out_dir / f"{name_stem}.xml"
+
+    shutil.move(str(generated_xml), str(out_file))
+    print(f"Saved to {out_file}")
+
+    content = out_file.read_text(encoding="utf-8")
+    return out_file, content
+
+
+if __name__ == "__main__":
+    os.environ['FLEUR_INPGEN_PATH'] = "/root/fleur/build/inpgen"
+    path = Path("/root/projects/ab_initio_calculations/fleur_input/h2.inp")
+    convert_inp_to_xml(path)
