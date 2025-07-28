@@ -5,8 +5,6 @@ from pathlib import Path
 from ab_initio_calculations.utils.fleur_utils import convert_inp_to_xml
 from yascheduler import Yascheduler
 
-# Set correct path to inpgen binary
-os.environ['FLEUR_INPGEN_PATH'] = "/root/fleur/build/inpgen"
 yac = Yascheduler()
 
 
@@ -51,5 +49,12 @@ def main(inp_dir: Path):
 
 
 if __name__ == "__main__":
-    input_dir = Path("/root/projects/ab_initio_calculations/fleur_input")
+    from dotenv import load_dotenv
+
+    ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    CONFIG_PATH = os.path.join(ROOT_DIR, 'config.env')
+    
+    load_dotenv(CONFIG_PATH)
+    
+    input_dir = os.environ['FLEUR_INP_DIR']
     main(input_dir)

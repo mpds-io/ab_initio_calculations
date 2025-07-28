@@ -104,15 +104,18 @@ def convert_inp_to_xml(inp_file: Path):
 
 
 if __name__ == "__main__":
-    from pathlib import Path
-    os.environ['FLEUR_INPGEN_PATH'] = "/root/fleur/build/inpgen"
+    from dotenv import load_dotenv
 
+    ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    CONFIG_PATH = os.path.join(ROOT_DIR, 'config.env')
+    
+    load_dotenv(CONFIG_PATH)
 
-    def list_inp_files(directory: Path):
-        inp_files = sorted(directory.rglob("*.inp"))  
+    def list_inp_files(dir):
+        inp_files = sorted(dir.rglob("*.inp"))  
         return [inp_file.resolve() for inp_file in inp_files]
 
-    base_dir = Path("/root/projects/ab_initio_calculations/fleur_input/incorrect")
+    base_dir = os.environ['FLEUR_INP_DIR']
     errors = []
     for file in list_inp_files(base_dir):
         try:
