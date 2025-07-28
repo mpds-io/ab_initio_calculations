@@ -104,6 +104,25 @@ def convert_inp_to_xml(inp_file: Path):
 
 
 if __name__ == "__main__":
+    from pathlib import Path
     os.environ['FLEUR_INPGEN_PATH'] = "/root/fleur/build/inpgen"
-    path = Path("/root/projects/ab_initio_calculations/fleur_input/h2.inp")
-    convert_inp_to_xml(path)
+
+
+    def list_inp_files(directory: Path):
+        inp_files = sorted(directory.rglob("*.inp"))  
+        return [inp_file.resolve() for inp_file in inp_files]
+
+    base_dir = Path("/root/projects/ab_initio_calculations/fleur_input/incorrect")
+    errors = []
+    for file in list_inp_files(base_dir):
+        try:
+            out_file, content = convert_inp_to_xml(file)
+            print(f"Converted {file.name} to XML and saved to {out_file}")
+        except:
+            errors.append(file)
+            print(f"Failed to convert {file.name}")
+            
+    if errors:
+        print("Errors occurred for the following files:")
+        for error_file in errors:
+            print(error_file)
