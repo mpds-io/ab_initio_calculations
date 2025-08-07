@@ -6,14 +6,13 @@ import numpy as np
 import spglib
 from aiida import load_profile
 from aiida.orm import StructureData
+from aiida_crystal_dft.utils.geometry import to_primitive
 from ase import Atoms
 
 from ab_initio_calculations.mpds.receiver import download_structures
 from ab_initio_calculations.utils.chemical_utils import get_random_element
 
 load_profile()
-
-from aiida_crystal_dft.utils.geometry import to_primitive
 
 logger = logging.getLogger("cell_treatment")
 logger.setLevel(logging.INFO)
@@ -32,8 +31,8 @@ logger.addHandler(file_handler)
 def get_random_structuredata():
     el = get_random_element()
     structs, _, _ = download_structures(el)
-    structe = structs[random.randint(0, len(structs) - 1)]
-    return structe
+    struct = structs[random.randint(0, len(structs) - 1)]
+    return struct
 
 
 def normalize_composition(numbers):
@@ -52,6 +51,7 @@ def get_conventional_cell(atoms: Atoms):
     )
     if conv is None:
         return None
+
     return Atoms(conv[2], scaled_positions=conv[1], cell=conv[0], pbc=True)
 
 
@@ -136,17 +136,15 @@ def test_primitive_vs_conventional(atoms: Atoms, index: int = 0):
         logger.info("-" * 60)
 
     except Exception as e:
+        logger.error("Anomaly: exception")
         logger.error(f"[{index}] Error: {e}")
-        logger.info(f"Anomaly: exception")
-        logger.info("-" * 60)
+        logger.error("-" * 60)
 
 
 if __name__ == "__main__":
-    logger.info("Script started")
-    N = 20
-    for i in range(N):
+    for i in range(20):
         try:
-            s = get_random_structuredata()
-            test_primitive_vs_conventional(s, i + 1)
+            struct = get_random_structuredata()
+            test_primitive_vs_conventional(struct, i + 1)
         except Exception as e:
             logging.error(f"[{i+1}] Failed to process structure: {e}")
