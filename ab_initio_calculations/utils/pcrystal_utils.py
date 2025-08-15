@@ -112,9 +112,7 @@ class Pcrystal_setup:
                 label,
             )
         )
-        
-        
-        
+
 
 def convert_to_pcrystal_input(dir: str, atoms_obj: list[ase.Atoms], entry: str = None) -> str:
     """Convert structures from ase.Atoms to Pcrystal input format (d12, fort.34)"""
