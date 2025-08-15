@@ -124,7 +124,7 @@ def convert_to_pcrystal_input(dir: str, atoms_obj: list[ase.Atoms], entry: str =
         setup = Pcrystal_setup(ase_obj)
         if any([i in el_hight_tolinteg for i in list(ase_obj.symbols)]):
             setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLINTEG"] = "8 8 8 8 16"
-        elif any([i == "Sb" for i in list(ase_obj.symbols)]):
+        elif "Sb" in set(ase_obj.symbols):
             setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLINTEG"] = "10 10 10 10 16"
         input = setup.get_input_setup("test " + entry)
         fort34 = setup.get_input_struct()
