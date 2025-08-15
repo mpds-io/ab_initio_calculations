@@ -5,12 +5,11 @@ from collections import Counter
 import numpy as np
 import spglib
 from aiida import load_profile
-from aiida.orm import StructureData
-from aiida_crystal_dft.utils.geometry import to_primitive
 from ase import Atoms
 
 from ab_initio_calculations.mpds.receiver import download_structures
-from ab_initio_calculations.utils.chemical_utils import get_random_element
+from ab_initio_calculations.utils.chemical_utils import (get_random_element,
+                                                         to_primitive)
 
 load_profile()
 
@@ -58,7 +57,7 @@ def get_conventional_cell(atoms: Atoms):
 def test_primitive_vs_conventional(atoms: Atoms, index: int = 0):
     try:
         ase_conv = get_conventional_cell(atoms)
-        ase_prim = to_primitive(StructureData(ase=atoms)).get_ase()
+        ase_prim = to_primitive(atoms)
 
         if ase_conv is None or ase_prim is None:
             logger.warning(f"[{index}] One of cells is None")
@@ -98,7 +97,7 @@ def test_primitive_vs_conventional(atoms: Atoms, index: int = 0):
         reversible = True
         try:
             reconv = get_conventional_cell(ase_prim)
-            reprim = to_primitive(StructureData(ase=ase_conv)).get_ase()
+            reprim = to_primitive(ase_conv)
             reversible = reconv is not None and reprim is not None
         except Exception:
             reversible = False
