@@ -51,86 +51,130 @@ def get_conventional_cell(atoms: Atoms):
     if conv is None:
         return None
 
-    return Atoms(conv[2], scaled_positions=conv[1], cell=conv[0], pbc=True)
-
+    new_atoms = Atoms(conv[2], scaled_positions=conv[1], cell=conv[0], pbc=True)
+    
+    for key, value in atoms.info.items():
+        new_atoms.info[key] = value
+    
+    for key in atoms.arrays:
+        if key not in ['numbers', 'positions']:
+            try:
+                new_atoms.set_array(key, atoms.get_array(key).copy())
+            except:
+                pass
+    
+    if atoms.calc is not None:
+        new_atoms.calc = atoms.calc
+    
+    return new_atoms
 
 def test_primitive_vs_conventional(atoms: Atoms, index: int = 0):
     try:
+        orig_info = atoms.info.copy()
+        
+        # fyi: original is alredy primitive
         ase_conv = get_conventional_cell(atoms)
-        ase_prim = to_primitive(atoms)
+        ase_prim = to_primitive(atoms) 
 
         if ase_conv is None or ase_prim is None:
             logger.warning(f"[{index}] One of cells is None")
             logger.info("-" * 60)
             return
 
+        n_orig = len(atoms)
         n_prim = len(ase_prim)
         n_conv = len(ase_conv)
 
+        vol_orig = atoms.get_volume() / n_orig
         vol_prim = ase_prim.get_volume() / n_prim
         vol_conv = ase_conv.get_volume() / n_conv
 
+        comp_orig = normalize_composition(atoms.get_atomic_numbers())
         comp_prim = normalize_composition(ase_prim.get_atomic_numbers())
-        comp_conv = normalize_composition(ase_conv.get_atomic_numbers())
 
-        composition_match = np.allclose(
-            [comp_prim.get(k, 0) for k in sorted(set(comp_prim) | set(comp_conv))],
-            [comp_conv.get(k, 0) for k in sorted(set(comp_prim) | set(comp_conv))],
-            atol=1e-3,
-        )
-
-        spg_prim = spglib.get_symmetry_dataset(
-            (
-                ase_prim.cell,
-                ase_prim.get_scaled_positions(),
-                ase_prim.get_atomic_numbers(),
-            )
-        )
-        spg_conv = spglib.get_symmetry_dataset(
-            (
-                ase_conv.cell,
-                ase_conv.get_scaled_positions(),
-                ase_conv.get_atomic_numbers(),
-            )
+        # check if original matches primitive
+        prim_match = (
+            n_orig == n_prim
+            and np.isclose(vol_orig, vol_prim, atol=1e-3)
+            and comp_orig == comp_prim
         )
 
         reversible = True
+        recovered_prim = None
+        recovered_prim_match = False
         try:
-            reconv = get_conventional_cell(ase_prim)
-            reprim = to_primitive(ase_conv)
-            reversible = reconv is not None and reprim is not None
+            # transform back to primitive
+            recovered_prim = to_primitive(ase_conv)
+            if recovered_prim is not None:
+                n_reprim = len(recovered_prim)
+                vol_reprim = recovered_prim.get_volume() / n_reprim
+                comp_reprim = normalize_composition(recovered_prim.get_atomic_numbers())
+                
+                # compare recovered primitive with original
+                recovered_prim_match = (
+                    n_orig == n_reprim
+                    and np.isclose(vol_orig, vol_reprim, atol=1e-3)
+                    and comp_orig == comp_reprim
+                )
+            else:
+                reversible = False
         except Exception:
             reversible = False
+            recovered_prim_match = False
+
+        # check if info matches
+        info_match_prim = ase_prim.info == orig_info
+        info_match_conv = ase_conv.info
+        info_match_recovered = recovered_prim is not None and recovered_prim.info == orig_info
+        
 
         logger.info(f"[{index}] Structure test:")
-        logger.info(f"Atoms: primitive={n_prim}, conventional={n_conv}")
+        logger.info(f"Atoms: original={n_orig}, primitive={n_prim}, conventional={n_conv}")
         logger.info(
-            f"Volume per atom: primitive={vol_prim:.4f}, conventional={vol_conv:.4f}"
+            f"Volume per atom: orig={vol_orig:.4f}, prim={vol_prim:.4f}, conv={vol_conv:.4f}"
         )
-        logger.info(f"Composition match: {composition_match}")
-        logger.info(
-            f"Space group: primitive={spg_prim['international']} ({spg_prim['number']}), "
-            f"conventional={spg_conv['international']} ({spg_conv['number']})"
-        )
+        logger.info(f"Original matches primitive: {prim_match}")
         logger.info(f"Reversible transformation: {reversible}")
+        logger.info(f"Recovered primitive matches original: {recovered_prim_match}")
+        logger.info(f"Metadata preserved: primitive={info_match_prim}, conventional={info_match_conv}, recovered={info_match_recovered}")
 
-        composition_same = composition_match
-        volume_ratio = abs(vol_prim - vol_conv) / min(vol_prim, vol_conv)
-        volume_same = volume_ratio <= 0.5
-        spg_same = spg_prim["number"] == spg_conv["number"]
-        reversible_same = reversible
-        atoms_same = n_prim == n_conv
+        # check space groups
+        spg_orig = spglib.get_symmetry_dataset(
+            (atoms.cell, atoms.get_scaled_positions(), atoms.get_atomic_numbers())
+        )
+        spg_prim = spglib.get_symmetry_dataset(
+            (ase_prim.cell, ase_prim.get_scaled_positions(), ase_prim.get_atomic_numbers())
+        )
+        spg_conv = spglib.get_symmetry_dataset(
+            (ase_conv.cell, ase_conv.get_scaled_positions(), ase_conv.get_atomic_numbers())
+        )
 
-        if (
-            composition_same
-            and volume_same
-            and spg_same
-            and reversible_same
-            and atoms_same
-        ):
-            logger.info("Same: all parameters match")
+        spg_orig_num = spg_orig['number'] if spg_orig is not None else None
+        spg_prim_num = spg_prim['number'] if spg_prim is not None else None
+        spg_conv_num = spg_conv['number'] if spg_conv is not None else None
+
+        logger.info(
+            f"Space groups: orig={spg_orig_num}, prim={spg_prim_num}, conv={spg_conv_num}"
+        )
+
+        spg_match = (spg_orig_num == spg_prim_num == spg_conv_num) and (spg_orig_num is not None)
+
+        if prim_match and recovered_prim_match and spg_match and info_match_prim and info_match_conv and info_match_recovered:
+            logger.info("SUCCESS: All transformations consistent")
         else:
-            logger.info("Different: parameters do not match")
+            logger.warning("WARNING: Inconsistencies detected")
+            if not prim_match:
+                logger.warning(" - Original and primitive cells differ")
+            if not recovered_prim_match:
+                logger.warning(" - Recovered primitive doesn't match original")
+            if not spg_match:
+                logger.warning(" - Space group mismatch")
+            if not info_match_prim:
+                logger.warning(" - Metadata mismatch in primitive cell")
+            if not info_match_conv:
+                logger.warning(" - Metadata mismatch in conventional cell")
+            if not info_match_recovered:
+                logger.warning(" - Metadata mismatch in recovered primitive")
 
         logger.info("-" * 60)
 
