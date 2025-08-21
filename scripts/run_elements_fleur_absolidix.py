@@ -1,13 +1,11 @@
 import asyncio
-import io
 import time
 
-import ase.io
 from absolidix_client import AbsolidixAPIAsync, AbsolidixTokenAuth
 
 from ab_initio_calculations.mpds.receiver import download_structures
 from ab_initio_calculations.settings import Settings
-from ab_initio_calculations.utils.chemical_utils import get_list_of_basis_elements
+from ab_initio_calculations.utils.chemical_utils import get_list_of_basis_elements, get_poscar_content
 from ab_initio_calculations.utils.structure_processor import process_structures
 from yascheduler import Yascheduler
 
@@ -15,13 +13,6 @@ API_URL = "http://localhost:3000"
 
 settings = Settings()
 yac = Yascheduler()
-
-
-def get_poscar_content(atoms_obj) -> str:
-    """Convert ASE atoms object to POSCAR string."""
-    with io.StringIO() as fd:
-        ase.io.write(fd, atoms_obj, format="vasp")
-        return fd.getvalue()
 
 
 async def create_calc_and_get_results(client: AbsolidixAPIAsync, poscar_content: str):
