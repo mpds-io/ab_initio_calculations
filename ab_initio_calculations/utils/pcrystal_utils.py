@@ -1,6 +1,6 @@
 import os
 from collections import namedtuple
-
+import ase
 import yaml
 from aiida_crystal_dft.io.basis import BasisFile
 from aiida_crystal_dft.io.d12 import D12
@@ -112,4 +112,31 @@ class Pcrystal_setup:
                 label,
             )
         )
-        
+
+
+def convert_to_pcrystal_input(dir: str, atoms_obj: list[ase.Atoms], entry: str = None) -> str:
+    """Convert structures from ase.Atoms to Pcrystal input format (d12, fort.34)"""
+    el_hight_tolinteg = ["Ta", "Se", "P"]
+
+    for ase_obj in atoms_obj:
+        setup = Pcrystal_setup(ase_obj)
+        if any([el in el_hight_tolinteg for el in set(ase_obj.symbols)]):
+            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLINTEG"] = "8 8 8 8 16"
+        elif "Sb" in set(ase_obj.symbols):
+            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLINTEG"] = "10 10 10 10 16"
+        input = setup.get_input_setup("test " + entry)
+        fort34 = setup.get_input_struct()
+
+        subdir = os.path.join(dir, f"pcrystal_input_{ase_obj.get_chemical_formula()}_{entry}")
+        os.makedirs(subdir, exist_ok=True)
+
+        input_file = os.path.join(subdir, f"input_{ase_obj.get_chemical_formula()}_{entry}")
+        fort_file = os.path.join(subdir, f"fort.34")
+
+        with open(input_file, "w") as f_input:
+            f_input.write(input)
+        with open(fort_file, "w") as f_fort:
+            f_fort.write(fort34)
+
+        print(f"Data written to {input_file} and {fort_file}")
+        return input_file

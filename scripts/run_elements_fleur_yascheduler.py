@@ -3,10 +3,14 @@ import time
 
 from ab_initio_calculations.mpds.receiver import download_structures
 from ab_initio_calculations.settings import Settings
-from ab_initio_calculations.utils.chemical_utils import get_list_of_basis_elements
+from ab_initio_calculations.utils.chemical_utils import \
+    get_list_of_basis_elements
 from ab_initio_calculations.utils.fleur_utils import Fleur_setup
 from ab_initio_calculations.utils.structure_processor import process_structures
 from yascheduler import Yascheduler
+
+# set correct path here
+os.environ['FLEUR_INPGEN_PATH'] = "/root/fleur/build/inpgen"
 
 settings = Settings()
 yac = Yascheduler()
@@ -58,3 +62,4 @@ if __name__ == "__main__":
     
     load_dotenv(CONFIG_PATH)
     main()
+
