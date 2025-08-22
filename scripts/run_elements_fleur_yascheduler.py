@@ -11,6 +11,7 @@ from yascheduler import Yascheduler
 
 # set correct path here
 os.environ['FLEUR_INPGEN_PATH'] = "/root/fleur/build/inpgen"
+
 settings = Settings()
 yac = Yascheduler()
 
@@ -43,7 +44,7 @@ def run_by_yascheduler(el: str):
         "fleur",
     )
     print(f"Task for {el} submitted with ID: {result}")
-    
+
 def main():
     """Main function to run the script for all elements."""
     for el in get_list_of_basis_elements():
@@ -54,4 +55,11 @@ def main():
 
 
 if __name__ == "__main__":
+    from dotenv import load_dotenv
+
+    ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    CONFIG_PATH = os.path.join(ROOT_DIR, 'config.env')
+    
+    load_dotenv(CONFIG_PATH)
     main()
+
