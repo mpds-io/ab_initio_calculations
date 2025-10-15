@@ -120,10 +120,30 @@ def convert_to_pcrystal_input(dir: str, atoms_obj: list[ase.Atoms], entry: str =
 
     for ase_obj in atoms_obj:
         setup = Pcrystal_setup(ase_obj)
+        
         if any([el in el_hight_tolinteg for el in set(ase_obj.symbols)]):
-            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLINTEG"] = "8 8 8 8 16"
-        elif "Sb" in set(ase_obj.symbols):
-            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLINTEG"] = "10 10 10 10 16"
+            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLINTEG"] = [8, 8, 8, 8, 16]
+            
+        elif any([i in list(ase_obj.symbols) for i in ['C', 'Ag', 'Mg', 'Tc', 'Ni', 'Sb', 'Pr']]):
+            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLINTEG"] = [20, 20, 20, 20, 40]
+            setup.calc_setup["default"]["properties"]["shrink"] = 8
+            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLDEE"] = 6
+        elif any([i in list(ase_obj.symbols) for i in ['P', 'Se', 'Mn', 'Fe', 'Ru', 'V', 'Tc']]):
+            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLINTEG"] = [6, 6, 6, 6, 12]
+            setup.calc_setup["default"]["properties"]["shrink"] = 7
+            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLDEE"] = 6
+        elif any([i in list(ase_obj.symbols) for i in ['Co', 'Cr']]):
+            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLINTEG"] = [8, 8, 8, 8, 16]
+            setup.calc_setup["default"]["crystal"]["scf"]['k_points'] = [32, 32]
+            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLDEE"] = 8
+        elif any([i in list(ase_obj.symbols) for i in ['Es']]):
+            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLINTEG"] = [8, 8, 8, 8, 16]
+            setup.calc_setup["default"]["crystal"]["scf"]['k_points'] = [10, 10]
+            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["TOLDEE"] = 8
+            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["MAXCYCLE"] = 1000
+            setup.calc_setup["default"]["crystal"]["scf"]["numerical"]["FMIXING"] = 90
+
+
         input = setup.get_input_setup("test " + entry)
         fort34 = setup.get_input_struct()
 
