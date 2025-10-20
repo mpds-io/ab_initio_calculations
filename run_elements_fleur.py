@@ -85,7 +85,6 @@ def find_nodes(fleur_node_label, inpgen_node_label):
     return data
 
 
-# (Took it) from Alina`s code
 def get_structure_from_mpds(el: str) -> ase.Atoms:
     """Request structures from MPDS, convert to ase.Atoms, return median structure from all"""
 
