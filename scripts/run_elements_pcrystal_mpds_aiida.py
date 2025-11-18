@@ -15,7 +15,6 @@ from aiida import load_profile
 load_profile()
 
 def main():
-    br = False
     for el in get_list_of_basis_elements():
         try:            
             structs, response, el = download_structures(el)
