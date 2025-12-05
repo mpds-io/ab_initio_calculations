@@ -69,11 +69,12 @@ def download_and_process_archives(arch_dir = "./mpds_archives/"):
     print("Result: ", result_count)
     
 
-def download_structures(el: str = None) -> tuple[list[Atoms], list[list], str]:
+def download_structures(el: str = None, query_dict: dict = None) -> tuple[list[Atoms], list[list], str]:
     """Request structures from MPDS and return raw data
     
     Args:
         el: Element symbol (optional)
+        query_dict: Custom query dictionary (optional)
         
     Returns:
         tuple: (list of ASE Atoms structures, raw response data, element symbol)
@@ -83,6 +84,26 @@ def download_structures(el: str = None) -> tuple[list[Atoms], list[list], str]:
     if not el:
         from utils import get_random_element  # here to avoid circular import issues
         el = get_random_element()
+    if query_dict:
+        try:
+            response = client.get_data(query_dict, fields={
+                "S": [
+                    "entry",
+                    "occs_noneq",
+                    "cell_abc",
+                    "sg_n",
+                    "basis_noneq",
+                    "els_noneq",
+                ]
+            })
+            
+            structs = [client.compile_crystal(line[2:], flavor="ase") for line in response]
+            structs = list(filter(None, structs))
+            
+            return structs, response, el
+        except APIError as e:
+            print(f"[ERROR] MPDS API error for element {el} with custom query: {e}")
+            return None, None, el
     
     try:
         response = client.get_data(
