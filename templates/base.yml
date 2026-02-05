@@ -1,0 +1,31 @@
+codes:
+  crystal:
+    Pcrystal@yascheduler
+
+options:
+  need_phonons: false
+  need_elastic_constants: false
+  need_properties: false
+  recursive_update: true
+  try_oxi_if_fails: true
+  is_magnetic: true
+  optimize_structure: optimise
+
+basis_family: MPDSBSL_NEUTRAL_24
+
+default:
+  crystal:
+    scf:
+      k_points: [6, 6]
+      dft:
+        xc: ['PBE', 'PBE']
+      numerical:
+        TOLDEE: 10
+        MAXCYCLE: 100
+        TOLINTEG: [16, 16, 16, 16, 32]
+
+
+calculations:
+  optimise:
+    metadata:
+      label: 'Geometry optimization'
