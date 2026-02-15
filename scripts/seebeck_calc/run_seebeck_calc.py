@@ -79,18 +79,22 @@ def run_pproperties_in_directories(directories: list, engines_path: Path, np: in
             #execute mpirun command
             print(f"Running: mpirun -np {np} {engines_path} < INPUT > test.out")
             
-            # cmd = ["mpirun", "-np", str(np), str(engines_full_path)]
             # add -v to see errors
             cmd = ["mpirun", "-np", str(np), "-v", str(engines_full_path)]
-            
-            with open("INPUT") as infile, open("test.out", "w") as outfile:
+
+            print(f"Running: {' '.join(cmd)} < INPUT > test.out")
+
+            with open(os.path.join(dir_path, "INPUT"), "r") as infile, \
+                open(os.path.join(dir_path, "test.out"), "w") as outfile:
+                
                 result = subprocess.run(
-                    cmd,
-                    stdin=infile,
-                    text=True,
+                    cmd, 
+                    stdin=infile,   
+                    stdout=outfile,  
+                    stderr=subprocess.STDOUT, 
                     cwd=dir_path
                 )
-            
+                            
             if result.returncode == 0:
                 print("Successfully completed")
             else:
