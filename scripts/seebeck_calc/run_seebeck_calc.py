@@ -51,6 +51,7 @@ def run_pproperties_in_directories(directories: list, engines_path: Path, np: in
     1. Create standard INPUT file
     2. Run mpirun -np 8 Pproperties < INPUT > test.out
     3. Wait for completion before next directory
+    4. Cleanup *.pe* files after each run
     """
     for dir_path in directories:
         dir_path = Path(dir_path)
@@ -76,7 +77,7 @@ def run_pproperties_in_directories(directories: list, engines_path: Path, np: in
                 continue
             
             #execute mpirun command
-            print(f"  Running: mpirun -np {np} {engines_path} < INPUT > test.out")
+            print(f"Running: mpirun -np {np} {engines_path} < INPUT > test.out")
             
             # cmd = ["mpirun", "-np", str(np), str(engines_full_path)]
             # add -v to see errors
@@ -113,11 +114,10 @@ def run_pproperties_in_directories(directories: list, engines_path: Path, np: in
 if __name__ == "__main__":
     import polars as pl
 
-
     df = pl.read_csv("/data/summary_2026_02_13_19_47_54.csv")
     filtered_df = df.filter(pl.col("H") == "PBE0")
     DIRECTORIES = [Path(p).parent for p in filtered_df['output_path']]
     
     ENGINES_PATH = "/root/projects/ab_initio_calculations/engines/Pproperties"
     
-    run_pproperties_in_directories([DIRECTORIES[1]], ENGINES_PATH)
+    run_pproperties_in_directories(DIRECTORIES, ENGINES_PATH)
