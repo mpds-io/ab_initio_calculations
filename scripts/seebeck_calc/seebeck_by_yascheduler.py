@@ -36,12 +36,12 @@ def submit_yascheduler_task(input_file):
     """Give task to yascheduler"""
     target = os.path.abspath(input_file)
     work_folder = os.path.dirname(target)
-    label = SETUP_INPUT.splitlines()[0]
 
     yac = Yascheduler()
     
     with open(target, encoding="utf-8") as f:
         SETUP_INPUT = f.read()
+    label = SETUP_INPUT.splitlines()[0]
 
     with open(os.path.join(work_folder, "fort.9"), "rb") as f:
         fort9_b64 = base64.b64encode(f.read()).decode("ascii")
@@ -90,14 +90,7 @@ if __name__ == "__main__":
     # filtered_df = df.filter(pl.col("H") == "PBE0")
     # DIRECTORIES = [Path(p).parent for p in filtered_df['output_path']]
     DIRECTORIES = [
-        "/data/aiida/9f/84/eb21-3c02-4d4b-acb3-686bf2978e66", 
-        "/data/aiida/03/b6/e269-1014-4636-9897-7f2c617b2cf9", 
-        "/data/aiida/8b/a9/99fd-330d-4908-b587-92f7c6647c57", 
-        "/data/aiida/2a/cb/c323-2ae7-4e12-8039-d807538e2024", 
-        "/data/aiida/aa/9e/54ea-d183-4f3e-b138-6e620092310a", 
-        "/data/aiida/3e/c5/8e6f-9ab3-4786-b044-bd49b755335e"
-        
-        # "/data/aiida/3e/c5/8e6f-9ab3-4786-b044-bd49b755335e"
+        "/data/aiida_backup_18_02_26/1f/b4/1d95-a5fb-48ac-ae6c-28350f06f8e6"
     ]
     
     ENGINES_PATH = "/root/projects/ab_initio_calculations/engines/Pproperties"
