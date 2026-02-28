@@ -4,33 +4,12 @@ from aiida import load_profile
 from aiida.plugins import DataFactory
 from aiida.engine import submit
 from mpds_aiida.workflows.mpds import MPDSStructureWorkChain
+import polars as pl
 
 load_profile()
 
-PHASES = [
-    ("ND3", "194"),
-    ("TaP", "109"),
-    ("TiBr3", "148"),
-    ("ND3", "19"),
-    ("MgH2", "136"),
-    ("H2S", "142"),
-    ("UT3", "223"),
-    ("PuH2", "225"),
-    ("CrB4", "71"),
-    ("Fe3B", "62"),
-    ("Co2B", "140"),
-    ("NbB", "63"),
-    ("MoB2", "166"),
-    ("YbB6", "221"),
-    ("LuB12", "139"),
-    ("WB", "63"),
-    ("SiC", "156"),
-    ("KC", "142"),
-    ("V6C5", "151"),
-    ("Fe2C", "58"),
-    ("YC2", "225"),
-]
-
+df = pl.read_csv('ab_initio_seebeck_data.csv')
+PHASES = list(zip(df["formula"], df["sg"], df["phase_id"]))
 
 if len(sys.argv) > 1:
     phase = tuple(sys.argv[1].split("/"))
@@ -39,16 +18,14 @@ if len(sys.argv) > 1:
 else:
     print(f"Running batch of {len(PHASES)} phases")
 
-
-
 with open(
-    "templates/test_schema.yml"
+    "templates/base.yml"
 ) as f:
     workchain_options = yaml.load(f, Loader=yaml.SafeLoader)
 
 for phase in PHASES:
     if len(phase) == 3:
-        formula, sgs, pearson = phase
+        formula, sgs, id = phase
     else:
         formula, sgs = phase
         pearson = None
@@ -57,9 +34,9 @@ for phase in PHASES:
 
     inputs = MPDSStructureWorkChain.get_builder()
     inputs.workchain_options = workchain_options
-    inputs.metadata = dict(label="/".join(map(str, phase)))
+    inputs.metadata = dict(label="/".join(map(str, phase[:-1])))
     inputs.mpds_query = DataFactory("dict")(
-        dict={"formulae": formula, "sgs": sgs}
+        dict={"formulae": formula, "sgs": sgs},
     )
 
     calc = submit(MPDSStructureWorkChain, **inputs)
