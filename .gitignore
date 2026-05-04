@@ -203,3 +203,8 @@ basis_sets/
 aiida_repository/*
 aiida_repository/container/loose/7d/e6c27b1e50fd8bd869df5f986828e39abf8a2735ab5ce719a3e26dd84cc9bb
 aiida_repository/container/loose/7d/e6130476e27223c5e3ce84fb4f29c0b6ba569847cd7ee708aedd8d73b962ff
+openspec/specs/
+openspec/config.yaml
+./.opencode/
+node_modules/
+
