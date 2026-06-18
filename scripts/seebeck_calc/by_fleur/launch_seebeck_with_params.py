@@ -19,8 +19,9 @@ from aiida.common.exceptions import NotExistent
 
 from mpds_aiida.workflows.fleur_seebeck import FleurDOSLocalWorkChain, DEFAULT_SEEBECK
 
-SEEBECK_CSV = "seebeck_02_03_2026.csv"
+SEEBECK_CSV = "ab_initio_seebeck_data.csv"
 SUMMARY_CSV = "/data/summary_2026_04_29_10_34_45.csv"
+TEMPERATURE = 298.0
 
 
 def extract_uuid(output_path):
@@ -43,14 +44,8 @@ load_profile()
 
 fleur_code = load_code("fleur")
 
-# Load Seebeck parameters CSV (temperature and mu per formula)
-seebeck_df = pd.read_csv(SEEBECK_CSV, dtype={"chemical_formula": str}, keep_default_na=False)
-seebeck_params = {}
-for _, row in seebeck_df.iterrows():
-    seebeck_params[row["chemical_formula"]] = {
-        "temperature": float(row["temperature"]),
-        "fermi_energy_ev": float(row["mu"]),
-    }
+# Load Seebeck parameters CSV (formula and sg)
+seebeck_df = pd.read_csv(SEEBECK_CSV, dtype={"formula": str}, keep_default_na=False)
 
 # Load FLEUR summary CSV and pick last iteration per formula
 summary_df = pd.read_csv(SUMMARY_CSV, dtype={"chemical_formula": str}, keep_default_na=False)
@@ -58,15 +53,14 @@ fleur_df = summary_df[summary_df["engine"] == "fleur"].copy()
 fleur_df = fleur_df[fleur_df["chemical_formula"].str.strip() != ""]
 last_per_formula = fleur_df.loc[fleur_df.groupby("chemical_formula")["rmsd_disp"].idxmin()]
 
-# Only submit for formulas that have Seebeck parameters
-formulas_with_params = set(seebeck_params.keys())
+formulas_from_csv = set(seebeck_df["formula"])
 results = []
 
 for _, row in last_per_formula.iterrows():
     formula = row["chemical_formula"]
     output_path = row["output_path"]
 
-    if formula not in formulas_with_params:
+    if formula not in formulas_from_csv:
         print(f"[SKIP] {formula}: no Seebeck parameters in CSV")
         results.append((formula, "-", "-", "-", "skipped_no_params"))
         continue
@@ -87,16 +81,15 @@ for _, row in last_per_formula.iterrows():
 
     wf_para_dos = Dict(
         dict={
-            "kpoints_mesh_dos": [6, 6, 6],
+            "kpoints_mesh_dos": [54, 54, 54],
             "sigma": 0.002,
             "emin": -2.0,
             "emax": 2.0,
         }
     )
 
-    # Override DEFAULT_SEEBECK with temperature and mu from CSV
     seebeck_dict = DEFAULT_SEEBECK.copy()
-    seebeck_dict.update(seebeck_params[formula])
+    seebeck_dict["temperature"] = TEMPERATURE
     seebeck_params_node = Dict(dict=seebeck_dict)
 
     inputs = {
@@ -108,7 +101,7 @@ for _, row in last_per_formula.iterrows():
     }
 
     workchain = submit(FleurDOSLocalWorkChain, **inputs)
-    print(f"[OK] {formula}: submitted FleurDOSLocalWorkChain PK={workchain.pk} T={seebeck_params[formula]['temperature']}K mu={seebeck_params[formula]['fermi_energy_ev']}eV")
+    print(f"[OK] {formula}: submitted FleurDOSLocalWorkChain PK={workchain.pk} T={TEMPERATURE}K")
     results.append((formula, uuid_str, remote.pk, workchain.pk, "submitted"))
 
 print("\n{:<10} {:<38} {:<12} {:<12} {:<10}".format(

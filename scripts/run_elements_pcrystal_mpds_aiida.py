@@ -2,6 +2,7 @@ from aiida.plugins import DataFactory
 from aiida.engine import submit
 from mpds_aiida.workflows.aiida import AiidaStructureWorkChain
 from absolidix_backend.structures.struct_utils import get_formula
+import yaml
 
 from mpds_client import APIError
 
@@ -16,6 +17,14 @@ load_profile()
 
 def main():
     for el in get_list_of_basis_elements():
+        if el in [
+                    'Ta', 'Se', 'P',    # el_hight_tolinteg 
+                    'C', 'Ag', 'Mg', 'Tc', 'Ni', 'Sb', 'Pr', 
+                    'Mn', 'Fe', 'Ru', 'V',  
+                    'Co', 'Cr',         
+                    'Es'               
+                ]:
+            continue
         try:            
             structs, response, el = download_structures(el)
             if structs is None:
@@ -26,12 +35,17 @@ def main():
             if atoms_obj is None:
                 continue
             if atoms_obj:
-                label = get_formula(atoms_obj) + entry 
+                label = get_formula(atoms_obj) + '_test_ePBE0_23jan_2_' + entry 
                 inputs = AiidaStructureWorkChain.get_builder()
-                inputs.metadata = dict(label=label)
+                with open(f'/root/projects/mpds-aiida/mpds_aiida/calc_templates/ePBE0.yml') as f:
+                    inputs.workchain_options = yaml.load(f.read(), Loader=yaml.SafeLoader)
+
+                inputs.metadata.label = label
+
                 inputs.structure = DataFactory('structure')(ase=atoms_obj)
 
                 wc = submit(AiidaStructureWorkChain, **inputs)
+                
                 print("Submitted WorkChain %s" % wc.pk)
 
         except APIError as ex:

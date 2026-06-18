@@ -1,64 +1,105 @@
 #!/usr/bin/env python3
+"""
+Launch FleurDOSLocalWorkChain for Seebeck coefficient calculation
+for all phases from ab_initio_seebeck_data.csv.
 
-import uuid
+Uses SCF + DOS mode: for each phase, fetches structure from MPDS,
+runs SCF convergence, then DOS + Seebeck at T=298K.
 
-import pandas as pd
+Usage:
+    python launch_seebeck_from_csv.py              # all phases
+    python launch_seebeck_from_csv.py CaZrO3/221   # single phase
+"""
+
+import os
+import sys
+import time
+
+import polars as pl
+from mpds_client import MPDSDataRetrieval
 
 from aiida import load_profile
-from aiida.orm import Dict, Str, load_code, load_node
+from aiida.orm import Dict, Str, StructureData, Code
 from aiida.engine import submit
-from aiida.common.exceptions import NotExistent
 
 from mpds_aiida.workflows.fleur_seebeck import FleurDOSLocalWorkChain, DEFAULT_SEEBECK
 
-CSV_PATH = "/data/summary_2026_04_29_10_34_45.csv"
-
-
-def extract_uuid(output_path):
-    parts = output_path.strip("/").split("/")
-    uuid_body = parts[-2]
-    hex2 = parts[-3]
-    hex1 = parts[-4]
-    uuid_str = f"{hex1}{hex2}{uuid_body}"
-    uuid.UUID(uuid_str)
-    return uuid_str
-
-
-def resolve_remote(uuid_str):
-    calcjob = load_node(uuid_str)
-    remote = calcjob.base.links.get_outgoing().get_node_by_label("remote_folder")
-    return remote
-
-
 load_profile()
 
-fleur_code = load_code("fleur")
+MPDS_KEY = "KEY_HERE"
+os.environ["MPDS_KEY"] = MPDS_KEY
+CSV_PATH = "ab_initio_seebeck_data.csv"
+TEMPERATURE = 298.0
 
-df = pd.read_csv(CSV_PATH, dtype={"chemical_formula": str}, keep_default_na=False)
-fleur_df = df[df["engine"] == "fleur"].copy()
-fleur_df = fleur_df[fleur_df["chemical_formula"].str.strip() != ""]
-last_per_formula = fleur_df.loc[fleur_df.groupby("chemical_formula")["rmsd_disp"].idxmin()]
+
+def fetch_structure_from_mpds(formula, sg, max_retries=3):
+    client = MPDSDataRetrieval(api_key=MPDS_KEY)
+    for attempt in range(max_retries):
+        try:
+            answer = client.get_data(
+                {"formulae": formula, "sgs": sg, "props": "atomic structure"},
+                fields={"S": ["cell_abc", "sg_n", "basis_noneq", "els_noneq"]},
+            )
+            break
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(2 * (attempt + 1))
+                continue
+            raise
+    if not answer:
+        raise ValueError(f"No structure found for {formula}/{sg}")
+
+    structs = [client.compile_crystal(line, flavor="ase") for line in answer]
+    structs = list(filter(None, structs))
+    if not structs:
+        raise ValueError(f"No valid structures for {formula}/{sg}")
+
+    import numpy as np
+    minimal_struct = min(len(s) for s in structs)
+    candidates = [s for s in structs if len(s) == minimal_struct]
+    cells = np.array([s.get_cell().reshape(9) for s in candidates])
+    median_cell = np.median(cells, axis=0)
+    median_idx = int(np.argmin(np.linalg.norm(cells - median_cell, axis=1)))
+    ase_struct = candidates[median_idx]
+
+    return StructureData(ase=ase_struct)
+
+
+fleur_code = Code.get_from_string("fleur")
+inpgen_code = Code.get_from_string("inpgen")
+
+df = pl.read_csv(CSV_PATH)
+phases = [(row["formula"], int(row["sg"])) for row in df.iter_rows(named=True)]
+
+if len(sys.argv) > 1:
+    arg = sys.argv[1].split("/")
+    phases = [(arg[0], int(arg[1]))]
+
 results = []
 
-for _, row in last_per_formula.iterrows():
-    formula = row["chemical_formula"]
-    output_path = row["output_path"]
+for formula, sg in phases:
+    print(f"\n{'='*60}")
+    print(f"Processing {formula}/{sg}")
 
     try:
-        uuid_str = extract_uuid(output_path)
-    except (ValueError, IndexError) as e:
-        print(f"[SKIP] {formula}: UUID extraction failed: {e}")
-        results.append((formula, "-", "-", "-", "skipped"))
+        structure = fetch_structure_from_mpds(formula, sg)
+        structure.store()
+        print(f"  Structure stored: PK={structure.pk}")
+    except Exception as e:
+        print(f"  [ERROR] Failed to fetch structure for {formula}/{sg}: {e}")
+        results.append((formula, sg, "-", "-", "errored_structure"))
         continue
 
-    try:
-        remote = resolve_remote(uuid_str)
-    except (NotExistent, RuntimeError) as e:
-        print(f"[ERROR] {formula}: {e}")
-        results.append((formula, uuid_str, "-", "-", "errored"))
-        continue
+    scf_wf_parameters = Dict(
+        dict={
+            "fleur_runmax": 5,
+            "density_converged": 1.0e-6,
+            "mode": "density",
+            "itmax_per_run": 50,
+        }
+    )
 
-    wf_para_dos = Dict(
+    dos_wf_parameters = Dict(
         dict={
             "kpoints_mesh_dos": [54, 54, 54],
             "sigma": 0.002,
@@ -66,28 +107,39 @@ for _, row in last_per_formula.iterrows():
             "emax": 2.0,
         }
     )
-    seebeck_params = Dict(dict=DEFAULT_SEEBECK)
+
+    seebeck_dict = DEFAULT_SEEBECK.copy()
+    seebeck_dict["temperature"] = TEMPERATURE
+    seebeck_params = Dict(dict=seebeck_dict)
 
     inputs = {
+        "scf": {
+            "wf_parameters": scf_wf_parameters,
+            "structure": structure,
+            "inpgen": inpgen_code,
+            "fleur": fleur_code,
+        },
         "fleur": fleur_code,
-        "remote": remote,
-        "wf_parameters": wf_para_dos,
+        "wf_parameters": dos_wf_parameters,
         "seebeck_parameters": seebeck_params,
-        "phase": Str(formula),
+        "structure": structure,
+        "phase": Str(f"{formula}/{sg}"),
     }
 
-    workchain = submit(FleurDOSLocalWorkChain, **inputs)
-    print(f"[OK] {formula}: submitted FleurDOSLocalWorkChain PK={workchain.pk}")
-    results.append((formula, uuid_str, remote.pk, workchain.pk, "submitted"))
+    try:
+        workchain = submit(FleurDOSLocalWorkChain, **inputs)
+        print(f"  [OK] Submitted FleurDOSLocalWorkChain PK={workchain.pk} T={TEMPERATURE}K")
+        results.append((formula, sg, structure.pk, workchain.pk, "submitted"))
+    except Exception as e:
+        print(f"  [ERROR] Submission failed: {e}")
+        results.append((formula, sg, structure.pk, "-", "errored_submit"))
 
-print("\n{:<10} {:<38} {:<12} {:<12} {:<10}".format(
-    "Formula", "UUID", "Remote PK", "WC PK", "Status"
-))
-print("-" * 82)
+print(f"\n{'='*60}")
+print(f"{'Formula':<12} {'SG':<6} {'Struct PK':<12} {'WC PK':<12} {'Status':<15}")
+print("-" * 60)
 for r in results:
-    print("{:<10} {:<38} {:<12} {:<12} {:<10}".format(*r))
+    print(f"{r[0]:<12} {r[1]:<6} {r[2]:<12} {r[3]:<12} {r[4]:<15}")
 
 submitted = sum(1 for r in results if r[4] == "submitted")
-errored = sum(1 for r in results if r[4] == "errored")
-skipped = sum(1 for r in results if r[4] == "skipped")
-print(f"\nTotal: {len(results)} | Submitted: {submitted} | Errored: {errored} | Skipped: {skipped}")
+errored = sum(1 for r in results if r[4].startswith("errored"))
+print(f"\nTotal: {len(results)} | Submitted: {submitted} | Errored: {errored}")
