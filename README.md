@@ -1,6 +1,6 @@
 # Curating the nanoscale simulations data
 
-[Alina Zhidkovskaya](https://orcid.org/0009-0003-9305-0030) and [Evgeny Blokhin](https://orcid.org/0000-0002-5333-3947)<br />
+[Alina Zhidkovskaya](https://orcid.org/0009-0003-9305-0030), [Gumar Arutunyan](https://orcid.org/0009-0009-5839-6400) and [Evgeny Blokhin](https://orcid.org/0000-0002-5333-3947)<br />
 Tilde Materials Informatics and Materials Platform for Data Science LLC
 
 
