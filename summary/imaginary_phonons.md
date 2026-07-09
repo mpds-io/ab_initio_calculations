@@ -190,5 +190,7 @@ This is direct consequence of the light atom having larger zero-point vibrationa
 
 **Created:** 2026-07-09
 
+**Disclaimer**: The DeepSeek V3 was used
+
 **Data source:** MPDS (Materials Platform for Data Science), AB INITIO Calculations
 
