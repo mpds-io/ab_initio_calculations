@@ -192,7 +192,7 @@ This is direct consequence of the light atom having larger zero-point vibrationa
 
 **Disclaimer**: The DeepSeek V3 was used
 
-**Used Prompt**: "Analyze the list of imaginary phonons, identify the underlying patterns, and arrange them in order of increasing complexity. Place all of this in a README.md file."
+**Used Prompt**: "Analyze the list of imaginary phonons, identify the underlying patterns, and arrange them in order of increasing complexity. Provide result in the MD format"
 
 **Data source:** MPDS (Materials Platform for Data Science), AB INITIO Calculations
 
