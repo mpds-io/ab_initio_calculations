@@ -55,11 +55,6 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from run_fleur_scf import run_scf, write_forces_file_from_out_xml, PRESETS  # noqa: E402
 
 
-# ---------------------------------------------------------------------------
-# phonopy helpers
-# ---------------------------------------------------------------------------
-
-
 def _poscar_to_phonopy_atoms(poscar: str):
     from phonopy.structure.atoms import PhonopyAtoms
     from ase.io import read as ase_read
@@ -161,11 +156,6 @@ def analyse_phonons(ph, n_qpoints_band: int = 51) -> dict[str, Any]:
         result["band_error"] = f"band analysis failed (non-fatal): {e}"
 
     return result
-
-
-# ---------------------------------------------------------------------------
-# Main orchestration
-# ---------------------------------------------------------------------------
 
 
 def run_phonopy_manual(

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Download a crystal structure from the MPDS API by phase_id and save it as a
 POSCAR (VASP) file for use with the FLEUR + phonopy pipeline.

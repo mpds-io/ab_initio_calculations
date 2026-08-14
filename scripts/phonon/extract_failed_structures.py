@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Extract the pristine StructureData of the failed PhonopyFleurWorkChain runs
 to POSCAR files and dump the accompanying fleur_parameters / supercell_matrix

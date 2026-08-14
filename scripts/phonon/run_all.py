@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 End-to-end phonon calculation: download structure (optional) -> FLEUR SCF +
 forces for each displacement -> phonopy force constants -> phonon frequencies.

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Aggregate run_manifest.json files from one or more run_phonopy_manual.py
 runs into a single markdown report comparing FLEUR SCF convergence and

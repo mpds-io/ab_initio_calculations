@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Run a single FLEUR SCF calculation (inpgen + fleur_MPI) outside AiiDA and
 optionally a follow-up forces run (l_f=True) that writes the FORCES file.
