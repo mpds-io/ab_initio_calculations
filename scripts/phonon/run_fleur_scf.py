@@ -519,7 +519,39 @@ def _check_converged(run_info: dict[str, Any], wf_parameters: dict[str, Any]) ->
 HTR_PER_BOHR_TO_EV_PER_ANG = 51.422067476532
 
 
-def write_forces_file_from_out_xml(out_xml: Path, forces_file: Path) -> int:
+def _get_atom_group_counts(inp_xml_path: Path) -> list[int]:
+    """Read inp.xml and return the number of atoms (relPos/absPos) in each
+    atomGroup, in order. FLEUR writes one forceTotal per atomGroup, but when
+    a group contains multiple symmetry-equivalent atoms the same force applies
+    to all of them. This list tells the caller how many times to repeat each
+    force when writing the FORCES file."""
+    try:
+        tree = etree.parse(str(inp_xml_path))
+    except Exception:
+        return []
+    root = tree.getroot()
+    counts = []
+    for ag in root.iter():
+        if not isinstance(ag.tag, str):
+            continue
+        if ag.tag.split("}")[-1] != "atomGroup":
+            continue
+        n = 0
+        for child in ag:
+            if not isinstance(child.tag, str):
+                continue
+            ln = child.tag.split("}")[-1]
+            if ln in ("relPos", "absPos"):
+                n += 1
+        counts.append(max(1, n))
+    return counts
+
+
+def write_forces_file_from_out_xml(
+    out_xml: Path,
+    forces_file: Path,
+    inp_xml_path: Path | None = None,
+) -> int:
     """Extract forces from out.xml (totalForcesOnRepresentativeAtoms/forceTotal)
     and write a FORCES file in the two-line-per-atom format phonopy expects:
 
@@ -532,7 +564,12 @@ def write_forces_file_from_out_xml(out_xml: Path, forces_file: Path) -> int:
     phonopy (which defaults to the vasp unit system: Angstrom + eV/Angstrom)
     receives consistent units.
 
-    Returns the number of force entries written.
+    If ``inp_xml_path`` is given, the function reads the atomGroup structure
+    from inp.xml and expands forces from representative atoms to all atoms in
+    each group (FLEUR writes one force per group, but groups may contain
+    multiple symmetry-equivalent atoms that share the same force).
+
+    Returns the number of force entries written (after expansion).
     """
     parser = etree.XMLParser(recover=True, huge_tree=True)
     try:
@@ -552,15 +589,24 @@ def write_forces_file_from_out_xml(out_xml: Path, forces_file: Path) -> int:
                 forces.append((float(fx), float(fy), float(fz)))
     if not forces:
         return 0
+
+    # Expand: repeat each force for every atom in the corresponding atomGroup
+    group_counts = _get_atom_group_counts(inp_xml_path) if inp_xml_path else []
+    forces_expanded = []
+    for i, (fx, fy, fz) in enumerate(forces):
+        n = group_counts[i] if i < len(group_counts) else 1
+        for _ in range(n):
+            forces_expanded.append((fx, fy, fz))
+
     with open(forces_file, "w") as fh:
-        for fx, fy, fz in forces:
+        for fx, fy, fz in forces_expanded:
             fh.write(
                 f"   {fx * HTR_PER_BOHR_TO_EV_PER_ANG: .16E}   "
                 f"{fy * HTR_PER_BOHR_TO_EV_PER_ANG: .16E}   "
                 f"{fz * HTR_PER_BOHR_TO_EV_PER_ANG: .16E}\n"
             )
             fh.write("      force\n")
-    return len(forces)
+    return len(forces_expanded)
 
 
 def run_scf(
@@ -701,7 +747,9 @@ def run_scf(
             apply_inpxml_changes(inp_xml, {"l_f": True, "f_level": int(f_level)})
             forces_info = _run_fleur(fleur_bin, workdir, mpi_procs, with_mpi, itmax=1)
             forces_file = workdir / "FORCES"
-            nforce = write_forces_file_from_out_xml(workdir / "out.xml", forces_file)
+            nforce = write_forces_file_from_out_xml(
+                workdir / "out.xml", forces_file, inp_xml_path=inp_xml
+            )
             result.forces_present = nforce > 0
             result.forces_lines = nforce
             # Re-parse SCF convergence from the snapshot (the live out.xml now
