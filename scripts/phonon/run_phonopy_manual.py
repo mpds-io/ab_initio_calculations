@@ -234,7 +234,7 @@ def run_phonopy_manual(
         )
         entry = {"i": i, "displacement": disp, **asdict(res)}
         manifest["scf_results"].append(entry)
-        if res.forces_present and forces_file.exists():
+        if res.forces_present and res.converged and forces_file.exists():
             forces_files.append(forces_file)
         else:
             print(

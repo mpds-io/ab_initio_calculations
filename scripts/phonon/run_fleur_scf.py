@@ -491,8 +491,12 @@ def _run_fleur(
 
 
 def _check_converged(run_info: dict[str, Any], wf_parameters: dict[str, Any]) -> bool:
-    """Decide if the SCF converged. energy mode compares |E_n-E_{n-1}|,
-    density mode compares the last charge density distance."""
+    """Decide if the SCF converged. A non-zero FLEUR return code means the
+    process crashed and must never be considered converged. energy mode
+    compares |E_n-E_{n-1}|, density mode compares the last charge density
+    distance."""
+    if run_info.get("rc", 0) != 0:
+        return False
     mode = wf_parameters.get("mode", "energy")
     if mode == "density":
         if run_info.get("last_charge_distance") is not None:
@@ -507,6 +511,14 @@ def _check_converged(run_info: dict[str, Any], wf_parameters: dict[str, Any]) ->
     return False
 
 
+# Conversion factor: FLEUR forces are in Hartree/bohr, phonopy default (vasp)
+# expects eV/Angstrom.
+#   1 Hartree = 27.211386245988 eV
+#   1 bohr    = 0.529177210903  Angstrom
+#   factor   = 27.211386245988 / 0.529177210903 = 51.422067476532
+HTR_PER_BOHR_TO_EV_PER_ANG = 51.422067476532
+
+
 def write_forces_file_from_out_xml(out_xml: Path, forces_file: Path) -> int:
     """Extract forces from out.xml (totalForcesOnRepresentativeAtoms/forceTotal)
     and write a FORCES file in the two-line-per-atom format phonopy expects:
@@ -515,8 +527,10 @@ def write_forces_file_from_out_xml(out_xml: Path, forces_file: Path) -> int:
         force
 
     FLEUR 6.2 does not emit a standalone FORCES text file, so we synthesize
-    one from out.xml. Forces are in Htr/bohr (F_x/F_y/F_z attributes on
-    forceTotal), which is the unit phonopy's fleur interface expects.
+    one from out.xml. Forces in out.xml are in Hartree/bohr (F_x/F_y/F_z
+    attributes on forceTotal). They are converted to eV/Angstrom here so that
+    phonopy (which defaults to the vasp unit system: Angstrom + eV/Angstrom)
+    receives consistent units.
 
     Returns the number of force entries written.
     """
@@ -540,7 +554,11 @@ def write_forces_file_from_out_xml(out_xml: Path, forces_file: Path) -> int:
         return 0
     with open(forces_file, "w") as fh:
         for fx, fy, fz in forces:
-            fh.write(f"   {fx: .16E}   {fy: .16E}   {fz: .16E}\n")
+            fh.write(
+                f"   {fx * HTR_PER_BOHR_TO_EV_PER_ANG: .16E}   "
+                f"{fy * HTR_PER_BOHR_TO_EV_PER_ANG: .16E}   "
+                f"{fz * HTR_PER_BOHR_TO_EV_PER_ANG: .16E}\n"
+            )
             fh.write("      force\n")
     return len(forces)
 
@@ -664,15 +682,20 @@ def run_scf(
                 result.converged = _check_converged(run_info2, wf_parameters)
 
         # 5. optional forces run (l_f=True) to produce forces.
+        #    Forces are only computed from a *converged* SCF density. If SCF
+        #    did not converge (or crashed), skip the forces run entirely —
+        #    forces from an unconverged density are physically meaningless and
+        #    would produce imaginary phonon modes.
         #    Use itmax=1: read forces from the already-converged density,
         #    do not continue iterating. FLEUR 6.2 does not write a separate
         #    FORCES text file; forces live in out.xml under
         #    totalForcesOnRepresentativeAtoms/forceTotal. We extract them into
-        #    a FORCES file in the two-line format phonopy expects.
+        #    a FORCES file (converting to eV/Angstrom) in the two-line format
+        #    phonopy expects.
         #
         #    The forces run overwrites out.xml, so we snapshot the SCF out.xml
         #    to out_scf.xml first and parse convergence from there.
-        if do_forces:
+        if do_forces and result.converged:
             scf_out_xml = workdir / "out_scf.xml"
             shutil.copy2(workdir / "out.xml", scf_out_xml)
             apply_inpxml_changes(inp_xml, {"l_f": True, "f_level": int(f_level)})
