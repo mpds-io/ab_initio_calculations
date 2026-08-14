@@ -234,14 +234,3 @@ ssh -i $SSH_KEY $REMOTE \
 scp -i $SSH_KEY $REMOTE:/tmp/zno_results.tar.gz ./
 ```
 
-## References
-
-- FLEUR: https://www.flapw.de
-- phonopy: https://phonopy.github.io/phonopy/
-- Togo & Tanaka, "First principles phonon calculations in materials science",
-  Scr. Mater. 108, 1-5 (2015): https://doi.org/10.1016/j.scriptamat.2015.07.021
-- MPDS API: https://developer.mpds.io
-- absolidix-backend PR #63 (branch `FlerSCFRestart`): restart with
-  halved k-points on SCF non-convergence
-- mpds-aiida branch `updating_fleur_parameters`: straight mixing (imix=straight,
-  alpha=0.05) in `calc_templates/flapw_default.yml`
