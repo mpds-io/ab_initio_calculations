@@ -159,6 +159,11 @@ Each run produces the following in `--outdir`:
 | `disp_NNN/fleur.inp` | inpgen text input |
 | `disp_NNN/fleur.stdout` | FLEUR stdout (warnings, timers) |
 
+**Units:** all phonon frequencies (`phonon_frequencies.txt`, the `mesh_min_freq_cm1`
+/ `mesh_max_freq_cm1` / `band_min_freq_cm1` fields in `run_manifest.json`, and the
+`--threshold` CLI options) are in cm^-1, matching the CRYSTAL/AiiDA convention
+used elsewhere in this repo — not phonopy's default THz.
+
 ## Running on a remote node
 
 To run on a remote Linux node over SSH (e.g. a bare-metal server with

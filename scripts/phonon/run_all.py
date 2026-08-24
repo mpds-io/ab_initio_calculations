@@ -45,7 +45,12 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from run_phonopy_manual import run_phonopy_manual  # noqa: E402
-from compute_frequencies import load_phonopy, write_frequencies, print_gamma  # noqa: E402
+from compute_frequencies import (  # noqa: E402
+    load_phonopy,
+    write_frequencies,
+    print_gamma,
+    DEFAULT_THRESHOLD_CM1,
+)
 from run_fleur_scf import PRESETS  # noqa: E402
 
 
@@ -102,8 +107,8 @@ def main():
     ap.add_argument(
         "--threshold",
         type=float,
-        default=-0.05,
-        help="imaginary threshold in THz (default: -0.05)",
+        default=DEFAULT_THRESHOLD_CM1,
+        help=f"imaginary threshold in cm^-1 (default: {DEFAULT_THRESHOLD_CM1})",
     )
     ap.add_argument(
         "--skip-frequencies",

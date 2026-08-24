@@ -5,7 +5,7 @@ thermodynamic properties (free energy, entropy, C_V, zero-point energy).
 
 Reads:
   - CRYSTAL: phonon_data.json (frequencies in cm^-1, from AiiDA parser)
-  - FLEUR:   phonon_frequencies.txt (frequencies in THz, from phonopy)
+  - FLEUR:   phonon_frequencies.txt (frequencies in cm^-1, from phonopy)
 
 Outputs a markdown table of [T, free_energy, entropy, C_V] over a temperature
 grid. At least one of --crystal / --fleur is required; both may be given to
@@ -44,7 +44,7 @@ def main() -> int:
         "--fleur",
         type=Path,
         default=None,
-        help="Path to FLEUR phonon_frequencies.txt (frequencies in THz).",
+        help="Path to FLEUR phonon_frequencies.txt (frequencies in cm^-1).",
     )
     parser.add_argument("--t-max", type=int, default=1000, help="Max temperature [K].")
     parser.add_argument("--t-step", type=int, default=25, help="Temperature step [K].")

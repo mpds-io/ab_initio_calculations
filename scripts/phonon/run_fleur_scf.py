@@ -23,7 +23,7 @@ compare:
               straight mixing imix=straight alpha=0.05, kmax=3.0,
               kpt mesh 4x4x4, itmax_per_run=300, fleur_runmax=10,
               density_converged=1e-4, energy_converged=0.01
-  tuningB   - Anton PR #63 FlerSCFRestart rule: take the baseline run, and
+  tuningB   - absolidix-backend PR #63 FlerSCFRestart rule: take the baseline run, and
               if it does not converge, restart it from the produced charge
               density with the k-point mesh halved in each direction.
               Encoded here as restart-on-failure behaviour of run_scf().

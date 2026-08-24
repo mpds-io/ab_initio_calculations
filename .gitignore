@@ -205,6 +205,16 @@ aiida_repository/container/loose/7d/e6c27b1e50fd8bd869df5f986828e39abf8a2735ab5c
 aiida_repository/container/loose/7d/e6130476e27223c5e3ce84fb4f29c0b6ba569847cd7ee708aedd8d73b962ff
 openspec/specs/
 openspec/config.yaml
-./.opencode/
+.opencode/
 node_modules/
+*.tar.gz
+inpgen
+src/
+aiida_mo_logs/
+aiida-crystal-dft/
+aiida-reoptimize/
+yascheduler/
+vultr_server_list.txt
+.ruff_cache/
+/templates/
 
