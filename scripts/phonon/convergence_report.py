@@ -18,6 +18,8 @@ import json
 import sys
 from pathlib import Path
 
+THZ_TO_CM1 = 33.3564095198152
+
 
 def load_manifests(pattern: str) -> list[dict]:
     paths = sorted(glob.glob(pattern))
@@ -51,7 +53,7 @@ def render(manifests: list[dict]) -> str:
     lines.append(
         "| Run | Preset | Supercell atoms | Disps | Converged (n/N) | "
         "Avg iters | Last dist | Energy diff (Htr) | Forces ok | "
-        "Imag modes (mesh) | Min freq (THz) | Elapsed (s) |"
+        "Imag modes (mesh) | Min freq (cm^-1) | Elapsed (s) |"
     )
     lines.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
     for m in manifests:
@@ -78,7 +80,10 @@ def render(manifests: list[dict]) -> str:
         last_ediff = ediffs[-1] if ediffs else None
         pa = m.get("phonon_analysis", {})
         imag = pa.get("mesh_n_imaginary", "-")
-        minf = pa.get("mesh_min_freq_THz")
+        minf = pa.get("mesh_min_freq_cm1")
+        if minf is None and pa.get("mesh_min_freq_THz") is not None:
+            # older manifests reported THz
+            minf = pa["mesh_min_freq_THz"] * THZ_TO_CM1
         elapsed = m.get("elapsed_sec", 0)
         lines.append(
             f"| {label} | {preset} | {nat} | {ndisp} | "
@@ -135,7 +140,7 @@ def render(manifests: list[dict]) -> str:
         "updating_fleur_parameters branch.)\n"
         "- **tuningB**: baseline parameters, but on SCF non-convergence restart "
         "from the produced charge density with the k-point mesh halved in "
-        "each direction. (Anton PR #63 FlerSCFRestart rule.)\n"
+        "each direction. (absolidix-backend PR #63 FlerSCFRestart rule.)\n"
         "- **tuningC**: tuningA from the start plus the halving restart on top.\n"
     )
     return "\n".join(lines) + "\n"

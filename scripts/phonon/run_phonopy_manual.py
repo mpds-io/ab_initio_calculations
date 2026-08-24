@@ -47,12 +47,18 @@ from pathlib import Path
 from typing import Any, Optional
 
 import numpy as np
+from phonopy.units import VaspToCm
 
 # Make run_fleur_scf importable whether run from repo root or scripts/phonon
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from run_fleur_scf import run_scf, write_forces_file_from_out_xml, PRESETS  # noqa: E402
+
+# All phonon frequencies in this module are reported in cm^-1 (not phonopy's
+# default THz) to match the CRYSTAL/AiiDA convention used elsewhere in this
+# repo. -1.67 cm^-1 ~= -0.05 THz, the previously used imaginary-mode cutoff.
+IMAG_THRESHOLD_CM1 = -1.67
 
 
 def _poscar_to_phonopy_atoms(poscar: str):
@@ -81,7 +87,7 @@ def _phonopy_supercell_to_ase(supercell) -> "ase.Atoms":  # noqa: F821
 def build_phonopy(unitcell, supercell_matrix) -> "Phonopy":
     from phonopy import Phonopy
 
-    ph = Phonopy(unitcell, supercell_matrix=supercell_matrix)
+    ph = Phonopy(unitcell, supercell_matrix=supercell_matrix, factor=VaspToCm)
     ph.generate_displacements()
     return ph
 
@@ -118,10 +124,10 @@ def analyse_phonons(ph, n_qpoints_band: int = 51) -> dict[str, Any]:
         all_mesh = np.ravel(mesh_freqs)
         result["mesh_n_qpoints"] = int(all_mesh.size // 3) if all_mesh.size else 0
         result["mesh_n_imaginary"] = (
-            int(np.sum(all_mesh < -0.05)) if all_mesh.size else 0
+            int(np.sum(all_mesh < IMAG_THRESHOLD_CM1)) if all_mesh.size else 0
         )
-        result["mesh_min_freq_THz"] = float(np.min(all_mesh)) if all_mesh.size else None
-        result["mesh_max_freq_THz"] = float(np.max(all_mesh)) if all_mesh.size else None
+        result["mesh_min_freq_cm1"] = float(np.min(all_mesh)) if all_mesh.size else None
+        result["mesh_max_freq_cm1"] = float(np.max(all_mesh)) if all_mesh.size else None
     except Exception as e:
         result["mesh_error"] = f"mesh analysis failed: {e}"
 
@@ -149,8 +155,8 @@ def analyse_phonons(ph, n_qpoints_band: int = 51) -> dict[str, Any]:
             else np.array([])
         )
         if all_band.size:
-            result["band_n_imaginary"] = int(np.sum(all_band < -0.05))
-            result["band_min_freq_THz"] = float(np.min(all_band))
+            result["band_n_imaginary"] = int(np.sum(all_band < IMAG_THRESHOLD_CM1))
+            result["band_min_freq_cm1"] = float(np.min(all_band))
         result["band_labels"] = labels
     except Exception as e:
         result["band_error"] = f"band analysis failed (non-fatal): {e}"
@@ -256,7 +262,7 @@ def run_phonopy_manual(
         print(
             f"[run_phonopy_manual] {label}: imaginary modes (mesh) = "
             f"{analysis.get('mesh_n_imaginary')}, "
-            f"min freq = {analysis.get('mesh_min_freq_THz')} THz"
+            f"min freq = {analysis.get('mesh_min_freq_cm1')} cm^-1"
         )
     else:
         manifest["phonon_analysis"] = {

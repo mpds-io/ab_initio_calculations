@@ -24,6 +24,12 @@ import yaml
 from phonopy import Phonopy
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.interface.fleur import parse_set_of_forces
+from phonopy.units import VaspToCm
+
+# All frequencies here are in cm^-1 (not phonopy's default THz), to match the
+# CRYSTAL/AiiDA convention used elsewhere in this repo.
+# -1.67 cm^-1 ~= -0.05 THz, the previously used imaginary-mode cutoff.
+DEFAULT_THRESHOLD_CM1 = -1.67
 
 
 def load_phonopy(run_dir: Path):
@@ -41,7 +47,7 @@ def load_phonopy(run_dir: Path):
     unitcell = PhonopyAtoms(symbols=symbols, cell=cell, scaled_positions=positions)
     sm = np.array(params["supercell_matrix"])
 
-    ph = Phonopy(unitcell, supercell_matrix=sm)
+    ph = Phonopy(unitcell, supercell_matrix=sm, factor=VaspToCm)
     ph.generate_displacements()
 
     n_atoms = len(ph.supercell)
@@ -55,7 +61,7 @@ def load_phonopy(run_dir: Path):
     return ph
 
 
-def write_frequencies(ph, run_dir: Path, mesh=(8, 8, 8), threshold=-0.05):
+def write_frequencies(ph, run_dir: Path, mesh=(8, 8, 8), threshold=DEFAULT_THRESHOLD_CM1):
     """Run a mesh calculation and dump frequencies to phonon_frequencies.txt."""
     ph.run_mesh(list(mesh))
     mesh_data = ph.get_mesh_dict()
@@ -65,10 +71,10 @@ def write_frequencies(ph, run_dir: Path, mesh=(8, 8, 8), threshold=-0.05):
     out_path = run_dir / "phonon_frequencies.txt"
     n_imag_total = 0
     with open(out_path, "w") as f:
-        f.write("# Phonon frequencies (THz)\n")
+        f.write("# Phonon frequencies (cm^-1)\n")
         f.write(f"# q-point mesh: {list(mesh)}\n")
         f.write(f"# n_qpoints = {len(all_freqs)}, n_bands = {len(all_freqs[0])}\n")
-        f.write(f"# imaginary threshold: < {threshold} THz (marked with *)\n\n")
+        f.write(f"# imaginary threshold: < {threshold} cm^-1 (marked with *)\n\n")
         for qi, (q, freqs) in enumerate(zip(qpoints, all_freqs)):
             n_imag = sum(1 for fr in freqs if fr < threshold)
             n_imag_total += n_imag
@@ -78,7 +84,7 @@ def write_frequencies(ph, run_dir: Path, mesh=(8, 8, 8), threshold=-0.05):
             )
             for bi, fr in enumerate(freqs):
                 marker = " *" if fr < threshold else ""
-                f.write(f"  band {bi + 1:3d}: {fr:10.4f} THz{marker}\n")
+                f.write(f"  band {bi + 1:3d}: {fr:10.4f} cm^-1{marker}\n")
             f.write("\n")
 
     print(f"wrote {out_path}")
@@ -86,10 +92,10 @@ def write_frequencies(ph, run_dir: Path, mesh=(8, 8, 8), threshold=-0.05):
         f"q-points: {len(all_freqs)}, bands: {len(all_freqs[0])}, "
         f"total: {len(all_freqs) * len(all_freqs[0])}"
     )
-    print(f"imaginary (< {threshold} THz): {n_imag_total}")
+    print(f"imaginary (< {threshold} cm^-1): {n_imag_total}")
 
 
-def print_gamma(ph, threshold=-0.05):
+def print_gamma(ph, threshold=DEFAULT_THRESHOLD_CM1):
     """Print frequencies at the Gamma point (q=0,0,0)."""
     ph.run_qpoints([[0, 0, 0]])
     freqs = ph.get_qpoints_dict()["frequencies"][0]
@@ -100,7 +106,7 @@ def print_gamma(ph, threshold=-0.05):
         is_imag = fr < threshold
         if is_imag:
             n_imag += 1
-        print(f"  band {i + 1:3d}: {fr:10.4f} THz{'  IMAGINARY' if is_imag else ''}")
+        print(f"  band {i + 1:3d}: {fr:10.4f} cm^-1{'  IMAGINARY' if is_imag else ''}")
     print(f"imaginary at Gamma: {n_imag}")
 
 
@@ -121,8 +127,8 @@ def main():
     ap.add_argument(
         "--threshold",
         type=float,
-        default=-0.05,
-        help="imaginary threshold in THz (default: -0.05)",
+        default=DEFAULT_THRESHOLD_CM1,
+        help=f"imaginary threshold in cm^-1 (default: {DEFAULT_THRESHOLD_CM1})",
     )
     args = ap.parse_args()
 
