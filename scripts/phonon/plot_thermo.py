@@ -30,6 +30,7 @@ SOURCES = [
     ("CRYSTAL", "crystal", "json", "r", "-"),
     ("FLEUR 6.2", "fleur_62", "txt", "b", "-"),
     ("FLEUR 8.1", "fleur_develop", "txt", "g", "--"),
+    ("FLEUR AiiDA", "fleur_aiida", "txt", "purple", ":"),
 ]
 
 PROP_LABELS = ["Free energy [kJ/mol]", "Entropy [J/K/mol]", "C_V [J/K/mol]"]

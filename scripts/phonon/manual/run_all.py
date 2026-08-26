@@ -13,7 +13,7 @@ This is a convenience wrapper that chains three steps:
 
 Usage (from MPDS phase_id):
 
-    python3 scripts/phonon/run_all.py \\
+    python3 scripts/phonon/manual/run_all.py \\
         --phase-id 7282 \\
         --supercell-matrix '[[1,1,0],[-1,1,0],[0,0,2]]' \\
         --preset tuningB_fast \\
@@ -25,7 +25,7 @@ Usage (from MPDS phase_id):
 
 Usage (from existing POSCAR):
 
-    python3 scripts/phonon/run_all.py \\
+    python3 scripts/phonon/manual/run_all.py \\
         --poscar data/manual_fleur_phonopy/structures/BiSe_164.poscar \\
         --supercell-matrix '[[1,1,0],[-1,1,0],[0,0,2]]' \\
         --preset tuningB_fast \\

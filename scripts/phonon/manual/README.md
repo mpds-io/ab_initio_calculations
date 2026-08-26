@@ -55,7 +55,7 @@ conda install -c conda-forge gfortran_linux-64=13 openmpi=5.0.8 \
 ### From an existing POSCAR
 
 ```bash
-python3 scripts/phonon/run_all.py \
+python3 scripts/phonon/manual/run_all.py \
     --poscar data/manual_fleur_phonopy/structures/BiSe_164.poscar \
     --supercell-matrix '[[1,1,0],[-1,1,0],[0,0,2]]' \
     --preset tuningB_fast \
@@ -69,7 +69,7 @@ python3 scripts/phonon/run_all.py \
 ### From an MPDS phase_id
 
 ```bash
-python3 scripts/phonon/run_all.py \
+python3 scripts/phonon/manual/run_all.py \
     --phase-id 7282 \
     --supercell-matrix '[[1,1,0],[-1,1,0],[0,0,2]]' \
     --preset tuningB_fast \
@@ -93,12 +93,12 @@ If you prefer to run each step separately:
 
 ```bash
 # 1. Download structure
-python3 scripts/phonon/download_mpds_structure.py \
+python3 scripts/phonon/manual/download_mpds_structure.py \
     --phase-id 7282 \
     --output data/manual_fleur_phonopy/structures/ZnO_7282.poscar
 
 # 2. Run FLEUR SCF + forces + force constants
-python3 scripts/phonon/run_phonopy_manual.py \
+python3 scripts/phonon/manual/run_phonopy_manual.py \
     --poscar data/manual_fleur_phonopy/structures/ZnO_7282.poscar \
     --supercell-matrix '[[1,1,0],[-1,1,0],[0,0,2]]' \
     --preset tuningB_fast \
@@ -109,12 +109,12 @@ python3 scripts/phonon/run_phonopy_manual.py \
     --mpi-procs 8
 
 # 3. Compute frequencies
-python3 scripts/phonon/compute_frequencies.py \
+python3 scripts/phonon/manual/compute_frequencies.py \
     --run-dir data/manual_fleur_phonopy/runs/ZnO_7282 \
     --mesh 8 8 8
 
 # 4. Generate comparison report (across multiple runs)
-python3 scripts/phonon/convergence_report.py \
+python3 scripts/phonon/manual/convergence_report.py \
     --runs-glob 'data/manual_fleur_phonopy/runs/*/run_manifest.json' \
     --output manual_fleur_phonon_report.md
 ```
@@ -198,8 +198,8 @@ scp -i $SSH_KEY /path/to/fleur/build/fleur_MPI /path/to/fleur/build/inpgen \
     $REMOTE:/root/fleur_MPI_files/
 
 # Scripts + POSCAR
-scp -i $SSH_KEY scripts/phonon/run_fleur_scf.py scripts/phonon/run_phonopy_manual.py \
-    scripts/phonon/compute_frequencies.py scripts/phonon/run_all.py \
+scp -i $SSH_KEY scripts/phonon/manual/run_fleur_scf.py scripts/phonon/manual/run_phonopy_manual.py \
+    scripts/phonon/manual/compute_frequencies.py scripts/phonon/manual/run_all.py \
     $REMOTE:/root/
 scp -i $SSH_KEY data/manual_fleur_phonopy/structures/ZnO_7282.poscar $REMOTE:/root/
 ```

@@ -21,7 +21,7 @@ which only needs the displaced supercell force files).
 
 Usage:
 
-    python3 scripts/phonon/run_phonopy_manual.py \\
+    python3 scripts/phonon/manual/run_phonopy_manual.py \\
         --poscar data/manual_fleur_phonopy/structures/BiSe_164.poscar \\
         --supercell-matrix '[[1,1,0],[-1,1,0],[0,0,2]]' \\
         --preset tuningA \\

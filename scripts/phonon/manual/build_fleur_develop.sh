@@ -7,8 +7,8 @@
 #   /root/fleur_develop/build/inpgen
 #
 # Usage:
-#   bash scripts/phonon/build_fleur_develop.sh             # clone + build
-#   bash scripts/phonon/build_fleur_develop.sh --rebuild    # rebuild only
+#   bash scripts/phonon/manual/build_fleur_develop.sh             # clone + build
+#   bash scripts/phonon/manual/build_fleur_develop.sh --rebuild    # rebuild only
 #
 # This script mirrors the options that the existing 6.2 build used
 # (see /root/fleur/build/CMakeCache.txt): MPI, OpenMP, LAPACK, Scalapack,

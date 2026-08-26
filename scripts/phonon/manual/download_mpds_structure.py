@@ -7,7 +7,7 @@ MPDS_KEY environment variable or the mpds_client config).
 
 Usage:
 
-    python3 scripts/phonon/download_mpds_structure.py \\
+    python3 scripts/phonon/manual/download_mpds_structure.py \\
         --phase-id 7282 \\
         --output data/manual_fleur_phonopy/structures/ZnO_7282.poscar
 

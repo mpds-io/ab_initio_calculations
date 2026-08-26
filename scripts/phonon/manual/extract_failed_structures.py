@@ -5,7 +5,7 @@ to JSON so the manual pipeline can reproduce the original setup exactly.
 
 Run from the ab_initio_calculations repo root:
 
-    python3 scripts/phonon/extract_failed_structures.py \\
+    python3 scripts/phonon/manual/extract_failed_structures.py \\
         --profile presto_pg \\
         --outdir data/manual_fleur_phonopy/structures
 

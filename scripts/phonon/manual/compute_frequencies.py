@@ -7,7 +7,7 @@ phonon_frequencies.txt. Also prints a summary (imaginary modes, Gamma point).
 
 Usage:
 
-    python3 scripts/phonon/compute_frequencies.py \\
+    python3 scripts/phonon/manual/compute_frequencies.py \\
         --run-dir data/manual_fleur_phonopy/runs/BiSe_164 \\
         --mesh 8 8 8
 

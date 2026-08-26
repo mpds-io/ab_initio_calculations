@@ -5,7 +5,7 @@ phonon quality across presets and FLEUR versions.
 
 Usage:
 
-    python3 scripts/phonon/convergence_report.py \\
+    python3 scripts/phonon/manual/convergence_report.py \\
         --runs-glob 'data/manual_fleur_phonopy/runs/*/run_manifest.json' \\
         --output manual_fleur_phonon_report.md
 """

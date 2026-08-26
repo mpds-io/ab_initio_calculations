@@ -31,7 +31,7 @@ compare:
 
 Usage as a script (see run_phonopy_manual.py for orchestration):
 
-    python3 scripts/phonon/run_fleur_scf.py run \
+    python3 scripts/phonon/manual/run_fleur_scf.py run \
         --poscar data/.../BiSe_164.poscar \
         --preset tuningA \
         --inpgen /root/fleur/build/inpgen \

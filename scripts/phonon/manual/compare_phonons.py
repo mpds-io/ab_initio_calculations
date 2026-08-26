@@ -5,10 +5,10 @@ for ZnO (phase 7282) and KNbO3 (phase 16803).
 
 All frequencies are reported in cm^-1 (CRYSTAL's native unit; FLEUR's
 phonon_frequencies.txt, from phonopy, is expected to already be in cm^-1 -
-see scripts/phonon/compute_frequencies.py).
+see scripts/phonon/manual/compute_frequencies.py).
 
 Usage:
-    python3 scripts/phonon/compare_phonons.py
+    python3 scripts/phonon/manual/compare_phonons.py
 """
 
 import io
