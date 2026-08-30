@@ -190,8 +190,50 @@ def main():
 
     systems = [
         {
-            "phase_id": 16803,
-            "formula": "KNbO3",
+            "phase_id": 9968,
+            "formula": "MgO",
+            "sgs": 225,
+            "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        },
+        {
+            "phase_id": 6336,
+            "formula": "SiC",
+            "sgs": 186,
+            "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        },
+        {
+            "phase_id": 8998,
+            "formula": "BN",
+            "sgs": 216,
+            "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        },
+        {
+            "phase_id": 6769,
+            "formula": "NaCl",
+            "sgs": 225,
+            "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        },
+        {
+            "phase_id": 86,
+            "formula": "ZnS",
+            "sgs": 216,
+            "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        },
+        {
+            "phase_id": 5813,
+            "formula": "GaAs",
+            "sgs": 216,
+            "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        },
+        {
+            "phase_id": 18989,
+            "formula": "SrTiO3",
+            "sgs": 221,
+            "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        },
+        {
+            "phase_id": 12954,
+            "formula": "BaTiO3",
             "sgs": 221,
             "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
         },
