@@ -25,6 +25,7 @@ import sys
 from pathlib import Path
 
 from ab_initio_calculations.calculations.phonon_thermo import (
+    VALID_METHODS,
     format_report,
     integrate_phonons,
 )
@@ -50,6 +51,12 @@ def main() -> int:
     parser.add_argument("--t-step", type=int, default=25, help="Temperature step [K].")
     parser.add_argument("--t-min", type=int, default=0, help="Min temperature [K].")
     parser.add_argument(
+        "--method",
+        choices=list(VALID_METHODS),
+        default="custom",
+        help="Integration method: custom (our fork), phonopy, or ase.",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=None,
@@ -66,8 +73,9 @@ def main() -> int:
         t_max=args.t_max,
         t_step=args.t_step,
         t_min=args.t_min,
+        method=args.method,
     )
-    report = format_report(result)
+    report = format_report(result, method=args.method)
 
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

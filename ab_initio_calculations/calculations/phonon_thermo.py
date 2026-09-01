@@ -254,10 +254,14 @@ class ThermalProperties(ThermalPropertiesBase):
                 file.write("\n")
 
 
-def _freqs_cm1_to_vasp_eigs(freqs_cm1_per_q: list[list[float]]) -> np.ndarray:
-    freqs_thz = np.array(
+def _freqs_cm1_to_thz(freqs_cm1_per_q: list[list[float]]) -> np.ndarray:
+    return np.array(
         [[f / THZ_TO_CM1 for f in modes] for modes in freqs_cm1_per_q], dtype=float
     )
+
+
+def _freqs_cm1_to_vasp_eigs(freqs_cm1_per_q: list[list[float]]) -> np.ndarray:
+    freqs_thz = _freqs_cm1_to_thz(freqs_cm1_per_q)
     return (freqs_thz / Constants.VaspToTHz) ** 2
 
 
@@ -266,22 +270,32 @@ def _freqs_thz_to_vasp_eigs(freqs_thz_per_q: list[list[float]]) -> np.ndarray:
     return (freqs_thz / Constants.VaspToTHz) ** 2
 
 
-def load_crystal_phonons(path: Path) -> tuple[np.ndarray, np.ndarray]:
+def load_crystal_phonons_freqs(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Load CRYSTAL phonon frequencies, returning (freqs_thz, weights).
+
+    freqs_thz shape (n_q, n_bands) in THz; negative = imaginary.
+    """
     with open(path) as f:
         d = json.load(f)
     modes_freqs = d["phonons"]["modes_freqs"]
     q_keys = list(modes_freqs.keys())
     freqs_cm = [modes_freqs[q] for q in q_keys]
-    eigs = _freqs_cm1_to_vasp_eigs(freqs_cm)
+    freqs_thz = _freqs_cm1_to_thz(freqs_cm)
     weights = np.ones(len(q_keys), dtype=int)
+    return freqs_thz, weights
+
+
+def load_crystal_phonons(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    freqs_thz, weights = load_crystal_phonons_freqs(path)
+    eigs = (freqs_thz / Constants.VaspToTHz) ** 2
     return eigs, weights
 
 
-def load_fleur_phonons(path: Path) -> tuple[np.ndarray, np.ndarray]:
-    """Parse phonon_frequencies.txt written by compute_frequencies.py.
+def load_fleur_phonons_freqs(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Parse phonon_frequencies.txt, returning (freqs_thz, weights).
 
-    Current files report cm^-1; older files (pre cm^-1 switch) reported THz
-    and are still parsed correctly by sniffing the per-band unit suffix.
+    freqs_thz shape (n_q, n_bands) in THz; negative = imaginary.
+    Handles both cm^-1 (current) and THz (legacy) file formats.
     """
     freqs: dict[str, list[float]] = {}
     current_q: Optional[str] = None
@@ -306,16 +320,204 @@ def load_fleur_phonons(path: Path) -> tuple[np.ndarray, np.ndarray]:
                 freqs[current_q].append(val)
     q_keys = list(freqs.keys())
     freqs_per_q = [freqs[q] for q in q_keys]
-    eigs = (
-        _freqs_thz_to_vasp_eigs(freqs_per_q)
-        if is_thz
-        else _freqs_cm1_to_vasp_eigs(freqs_per_q)
-    )
+    if is_thz:
+        freqs_thz = np.array(freqs_per_q, dtype=float)
+    else:
+        freqs_thz = _freqs_cm1_to_thz(freqs_per_q)
     weights = np.ones(len(q_keys), dtype=int)
+    return freqs_thz, weights
+
+
+def load_fleur_phonons(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Parse phonon_frequencies.txt, returning (vasp_eigs, weights)."""
+    freqs_thz, weights = load_fleur_phonons_freqs(path)
+    eigs = (freqs_thz / Constants.VaspToTHz) ** 2
     return eigs, weights
 
 
+class _MockMesh:
+    """Lightweight mock of a phonopy Mesh object for ThermalProperties."""
+
+    class _Primitive:
+        Z = 1
+
+    class _DynamicalMatrix:
+        def __init__(self):
+            self.primitive = _MockMesh._Primitive()
+
+    def __init__(self, frequencies: np.ndarray, weights: np.ndarray):
+        self.frequencies = frequencies  # THz, shape (n_q, n_bands)
+        self.weights = weights  # ints, shape (n_q,)
+        self.eigenvectors = None
+        self.dynamical_matrix = self._DynamicalMatrix()
+
+
+def _integrate_one_phonopy(
+    freqs_thz: np.ndarray, weights: np.ndarray, t_max: int, t_step: int, t_min: int
+) -> dict:
+    from phonopy.phonon.thermal_properties import ThermalProperties as PhTP
+
+    mesh = _MockMesh(freqs_thz, weights)
+    tp = PhTP(mesh, pretend_real=True)
+    tp.run(t_min=t_min, t_max=t_max, t_step=t_step)
+    temps, fe, entropy, cv = tp.thermal_properties
+    tp_arr = np.column_stack([temps, fe, entropy, cv])
+    return {
+        "thermal_properties": tp_arr,
+        "zero_point_energy": float(tp.zero_point_energy),
+        "high_T_entropy": None,
+        "n_qpoints": int(freqs_thz.shape[0]),
+    }
+
+
+def _integrate_one_ase(
+    freqs_thz: np.ndarray, t_max: int, t_step: int, t_min: int
+) -> dict:
+    from ase.thermochemistry import HarmonicThermo
+
+    n_qpoints = freqs_thz.shape[0]
+    # HarmonicThermo takes a flat list of vibrational energies in eV.
+    # It has no q-point weighting, so we flatten all q-points and divide
+    # the result by n_qpoints (equivalent to equal weights = 1/n_q).
+    # ASE raises on imaginary modes; use absolute values
+    flat_ev = np.abs(freqs_thz).flatten() * Constants.THzToEv
+    ht = HarmonicThermo(flat_ev.tolist(), ignore_imag_modes=True)
+
+    temps = list(range(t_min, t_max + t_step // 2, t_step))
+    fe_arr, s_arr, cv_arr = [], [], []
+    for t in temps:
+        if t == 0:
+            fe = ht.get_ZPE_correction()
+            s = 0.0
+            cv = 0.0
+        else:
+            fe = ht.get_helmholtz_energy(t, verbose=False)
+            s = ht.get_entropy(t, verbose=False)
+            # Cv = dU/dT via central finite difference
+            u_plus = ht.get_internal_energy(t + 1, verbose=False)
+            u_minus = ht.get_internal_energy(t - 1, verbose=False)
+            cv = (u_plus - u_minus) / 2.0
+        # Per-q-point average, then convert units
+        # eV -> kJ/mol: * EvTokJmol (96.485)
+        # eV/K -> J/K/mol: * EvTokJmol * 1000
+        fe_arr.append(fe / n_qpoints * Constants.EvTokJmol)
+        s_arr.append(s / n_qpoints * Constants.EvTokJmol * 1000)
+        cv_arr.append(cv / n_qpoints * Constants.EvTokJmol * 1000)
+
+    zpe = ht.get_ZPE_correction() / n_qpoints * Constants.EvTokJmol
+    tp_arr = np.column_stack([temps, fe_arr, s_arr, cv_arr])
+    return {
+        "thermal_properties": tp_arr,
+        "zero_point_energy": float(zpe),
+        "high_T_entropy": None,
+        "n_qpoints": int(n_qpoints),
+    }
+
+
+def integrate_phonons_phonopy(
+    crystal_path: Optional[Path] = None,
+    fleur_path: Optional[Path] = None,
+    t_max: int = 1000,
+    t_step: int = 10,
+    t_min: int = 0,
+) -> dict:
+    """Integrate using phonopy's ThermalProperties (lazy import)."""
+    result: dict = {"crystal": None, "fleur": None}
+
+    if crystal_path is not None and Path(crystal_path).exists():
+        try:
+            freqs_thz, w = load_crystal_phonons_freqs(Path(crystal_path))
+            result["crystal"] = _integrate_one_phonopy(
+                freqs_thz, w, t_max, t_step, t_min
+            )
+        except Exception as e:
+            logger.exception("Failed to integrate CRYSTAL phonons (phonopy): %s", e)
+            result["crystal"] = {"error": str(e)}
+    elif crystal_path is not None:
+        result["crystal"] = {"error": f"file not found: {crystal_path}"}
+
+    if fleur_path is not None and Path(fleur_path).exists():
+        try:
+            freqs_thz, w = load_fleur_phonons_freqs(Path(fleur_path))
+            result["fleur"] = _integrate_one_phonopy(freqs_thz, w, t_max, t_step, t_min)
+        except Exception as e:
+            logger.exception("Failed to integrate FLEUR phonons (phonopy): %s", e)
+            result["fleur"] = {"error": str(e)}
+    elif fleur_path is not None:
+        result["fleur"] = {"error": f"file not found: {fleur_path}"}
+
+    return result
+
+
+def integrate_phonons_ase(
+    crystal_path: Optional[Path] = None,
+    fleur_path: Optional[Path] = None,
+    t_max: int = 1000,
+    t_step: int = 10,
+    t_min: int = 0,
+) -> dict:
+    """Integrate using ASE HarmonicThermo (lazy import).
+
+    Note: ASE has no q-point weighting; results are averaged over q-points
+    with equal weights. Imaginary modes are treated as |freq| via
+    ignore_imag_modes=True.
+    """
+    result: dict = {"crystal": None, "fleur": None}
+
+    if crystal_path is not None and Path(crystal_path).exists():
+        try:
+            freqs_thz, _ = load_crystal_phonons_freqs(Path(crystal_path))
+            result["crystal"] = _integrate_one_ase(freqs_thz, t_max, t_step, t_min)
+        except Exception as e:
+            logger.exception("Failed to integrate CRYSTAL phonons (ase): %s", e)
+            result["crystal"] = {"error": str(e)}
+    elif crystal_path is not None:
+        result["crystal"] = {"error": f"file not found: {crystal_path}"}
+
+    if fleur_path is not None and Path(fleur_path).exists():
+        try:
+            freqs_thz, _ = load_fleur_phonons_freqs(Path(fleur_path))
+            result["fleur"] = _integrate_one_ase(freqs_thz, t_max, t_step, t_min)
+        except Exception as e:
+            logger.exception("Failed to integrate FLEUR phonons (ase): %s", e)
+            result["fleur"] = {"error": str(e)}
+    elif fleur_path is not None:
+        result["fleur"] = {"error": f"file not found: {fleur_path}"}
+
+    return result
+
+
+VALID_METHODS = ("custom", "phonopy", "ase")
+
+
 def integrate_phonons(
+    crystal_path: Optional[Path] = None,
+    fleur_path: Optional[Path] = None,
+    t_max: int = 1000,
+    t_step: int = 10,
+    t_min: int = 0,
+    method: str = "custom",
+) -> dict:
+    """Integrate phonon thermodynamic properties.
+
+    Args:
+        crystal_path: Path to CRYSTAL phonon_data.json.
+        fleur_path: Path to FLEUR phonon_frequencies.txt.
+        t_max, t_step, t_min: Temperature grid in Kelvin.
+        method: One of "custom" (our ThermalProperties fork),
+            "phonopy" (phonopy's ThermalProperties), or "ase" (ASE HarmonicThermo).
+    """
+    if method == "custom":
+        return _integrate_custom(crystal_path, fleur_path, t_max, t_step, t_min)
+    elif method == "phonopy":
+        return integrate_phonons_phonopy(crystal_path, fleur_path, t_max, t_step, t_min)
+    elif method == "ase":
+        return integrate_phonons_ase(crystal_path, fleur_path, t_max, t_step, t_min)
+    else:
+        raise ValueError(f"Unknown method '{method}'. Valid: {VALID_METHODS}")
+
+
+def _integrate_custom(
     crystal_path: Optional[Path] = None,
     fleur_path: Optional[Path] = None,
     t_max: int = 1000,
@@ -361,9 +563,11 @@ def integrate_phonons(
     return result
 
 
-def format_report(result: dict) -> str:
+def format_report(result: dict, method: str = "custom") -> str:
     lines: list[str] = []
-    lines.append("# Phonon thermodynamic integration: CRYSTAL vs FLEUR\n")
+    lines.append(
+        f"# Phonon thermodynamic integration (method: {method}): CRYSTAL vs FLEUR\n"
+    )
 
     for src in ("crystal", "fleur"):
         lines.append(f"## {src.upper()}\n")
@@ -376,7 +580,12 @@ def format_report(result: dict) -> str:
             continue
         lines.append(f"- q-points: {d['n_qpoints']}")
         lines.append(f"- zero point energy [kJ/mol]: {d['zero_point_energy']:.7f}")
-        lines.append(f"- high-T entropy [J/K/mol]: {d['high_T_entropy'] * 1000:.7f}\n")
+        if d.get("high_T_entropy") is not None:
+            lines.append(
+                f"- high-T entropy [J/K/mol]: {d['high_T_entropy'] * 1000:.7f}\n"
+            )
+        else:
+            lines.append("")
         tp = d["thermal_properties"]
         temps, fe, entropy, cv = tp[:, 0], tp[:, 1], tp[:, 2], tp[:, 3]
         lines.append(
@@ -411,6 +620,12 @@ def main() -> int:
     parser.add_argument("--t-step", type=int, default=10, help="Temperature step [K].")
     parser.add_argument("--t-min", type=int, default=0, help="Min temperature [K].")
     parser.add_argument(
+        "--method",
+        choices=list(VALID_METHODS),
+        default="custom",
+        help="Integration method: custom (our fork), phonopy, or ase.",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=None,
@@ -427,10 +642,12 @@ def main() -> int:
         t_max=args.t_max,
         t_step=args.t_step,
         t_min=args.t_min,
+        method=args.method,
     )
-    report = format_report(result)
+    report = format_report(result, method=args.method)
 
     if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(report, encoding="utf-8")
         print(f"Report written to {args.output}", file=sys.stderr)
     else:

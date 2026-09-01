@@ -22,7 +22,10 @@ from pathlib import Path
 import numpy as np
 from phonopy import Phonopy
 from phonopy.structure.atoms import PhonopyAtoms
-from phonopy.units import VaspToCm
+
+# VaspToCm = 521.4708 makes phonopy output in cm^-1 (Vasp unit system).
+# In phonopy 3.x it's not exported; in 4.x it is. Define manually.
+VaspToCm = 521.4708336735473
 
 DEFAULT_THRESHOLD_CM1 = -1.67
 
@@ -38,17 +41,21 @@ def main():
     from aiida.orm import load_node
 
     wc = load_node(args.pk)
-    if not wc.is_finished_ok:
+    # Allow exit=0 (full success) and exit=401 (forces present, some
+    # displacements failed) — as long as force constants were produced.
+    has_fc = False
+    try:
+        has_fc = wc.outputs.output_phonopy.output_force_constants is not None
+    except Exception:
+        pass
+    if not has_fc:
         sys.exit(
-            f"error: PK {args.pk} is not finished_ok "
-            f"(exit_status={wc.exit_status})"
+            f"error: PK {args.pk} has no force constants (exit_status={wc.exit_status})"
         )
 
     structure = wc.inputs.structure
     supercell_matrix = np.array(wc.inputs.supercell_matrix.get_list())
-    fc = wc.outputs.output_phonopy.output_force_constants.get_array(
-        "force_constants"
-    )
+    fc = wc.outputs.output_phonopy.output_force_constants.get_array("force_constants")
 
     ase_atoms = structure.get_ase()
     unitcell = PhonopyAtoms(
@@ -57,7 +64,8 @@ def main():
         scaled_positions=ase_atoms.get_scaled_positions(),
     )
 
-    ph = Phonopy(unitcell, supercell_matrix=supercell_matrix, factor=VaspToCm)
+    ph = Phonopy(unitcell, supercell_matrix=supercell_matrix)
+    ph.unit_conversion_factor = VaspToCm
     ph.force_constants = fc
     # AiiDA's raw force constants don't exactly satisfy the acoustic sum
     # rule (translating the whole crystal must cost zero energy): without
