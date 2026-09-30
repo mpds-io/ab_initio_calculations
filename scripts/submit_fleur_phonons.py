@@ -85,61 +85,27 @@ def get_structure(phase_id: int, formula: str, sgs: int):
 def build_fleur_parameters():
     """Build fleur_parameters (kwargs for FleurForcesWorkChain).
 
-    Note: PhonopyFleurWorkChain.run_forces does:
-        inputs = self.inputs.fleur_parameters.get_dict()
-        ... inputs["fleurinp"] = ...; submit(FleurForcesWorkChain, **inputs)
+    Loads the standard flapw_default.yml template from mpds_aiida and
+    extracts wf_parameters for the SCF step. This ensures we use exactly
+    the same parameters as the standard pipeline.
 
-    So fleur_parameters is a Dict whose .get_dict() returns kwargs for
-    FleurForcesWorkChain. The values must be plain JSON-serializable types.
-
-    IMPORTANT: FleurScfWorkChain does NOT accept calc_parameters when
-    fleurinp is given (exit 231 ERROR_INVALID_INPUT_CONFIG). The kmax/kpt
-    are already baked into inp.xml by inpgen. We only pass wf_parameters
-    with inpxml_changes to override the mixing scheme post-inpgen.
-
-    "options" is forwarded by FleurForcesWorkChain to both its FleurScfWorkChain
-    (SCF) and its own FleurBaseWorkChain (forces) sub-steps -- without it, both
-    fall back to num_mpiprocs_per_machine=1 with no OMP threads, which is what
-    crashed roughly half of the 8 displacement SCF jobs in earlier runs.
-
-    num_mpiprocs_per_machine: FleurBaseWorkChain.check_kpts() auto-tunes MPI
-    count to evenly divide the fleurinp's k-point count and REJECTS the job
-    (ERROR_NOT_OPTIMAL_RESOURCES, exit 390) if the best achievable divisor
-    covers <60% of the requested num_mpiprocs_per_machine
-    (aiida_fleur/tools/common_fleur_wf.py:optimize_calc_options). There is no
-    single value that cleanly divides every system's k-point counts:
-    ZnO_7282's 8 displacements need 40/68 (4 divides both), KNbO3_16803's
-    need 30/50 (10 divides both, but 68 only gives 40% with 10 -> rejected).
-    10 is used here since it's correct for the systems currently submitted
-    by this script; if you add a system whose k-point counts don't share a
-    large-enough common divisor with 10, check_kpts will reject it the same
-    way and this needs picking again (see the exact math in
-    optimize_calc_options -- log a `verdi process report` and look for
-    "Number of k-points is N" per displacement).
-
-    itmax_per_run=10, fleur_runmax=4: matches scripts/phonon/manual/run_fleur_scf.py's
-    tuningB_fast preset. A displacement that stalls within this budget (seen
-    on one of KNbO3_16803's 4 displacements) is now handled by
-    FleurForcesWorkChain.retry_scf_with_halved_kmesh in mpds-aiida, which
-    retries once with the k-point mesh halved -- the mechanism that actually
-    converges it in the manual pipeline (verified: same stalled energy_diff
-    at the original mesh, converges within 10 more iterations after halving).
-    A wider itmax_per_run alone was tried first and is not this value's
-    purpose here; the real fix is the halved-mesh retry.
+    options.resources are NOT in the template but are required for
+    yascheduler: without num_mpiprocs_per_machine, AiiDA defaults to
+    1 MPI process, making FLEUR with 300 iterations take weeks.
     """
+    from mpds_aiida.common import get_template
+
+    template = get_template("flapw_default.yml")
+    scf_wf = template["default"]["scf"]["wf_parameters"]
+
     return Dict(
         dict={
             "fleur": "fleur@yascheduler",
-            "wf_parameters": {
-                "mode": "energy",
-                "fleur_runmax": 4,
-                "itmax_per_run": 10,
-                "energy_converged": 0.0001,
-            },
+            "wf_parameters": scf_wf,
             "options": {
                 "resources": {
                     "num_machines": 1,
-                    "num_mpiprocs_per_machine": 10,
+                    "num_mpiprocs_per_machine": 2,
                 },
                 "environment_variables": {"OMP_NUM_THREADS": "1"},
                 "max_wallclock_seconds": 4 * 10**5,
@@ -160,6 +126,7 @@ def submit_phonons(structure, supercell_matrix, label, dry_run=False):
         "structure": structure,
         "supercell_matrix": List(list=supercell_matrix),
         "fleur_parameters": build_fleur_parameters(),
+        "kpoints_mesh": List(list=[2, 2, 3]),
         "phonopy": {
             "code": load_code("phonopy@local_machine"),
             "parameters": Dict(dict={"WRITE_FORCE_CONSTANTS": True}),
@@ -189,51 +156,127 @@ def main():
     args = ap.parse_args()
 
     systems = [
+        # --- Old structures (commented out) ---
+        # {
+        #     "phase_id": 9968,
+        #     "formula": "MgO",
+        #     "sgs": 225,
+        #     "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        # },
+        # {
+        #     "phase_id": 6336,
+        #     "formula": "SiC",
+        #     "sgs": 186,
+        #     "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        # },
+        # {
+        #     "phase_id": 8998,
+        #     "formula": "BN",
+        #     "sgs": 216,
+        #     "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        # },
+        # {
+        #     "phase_id": 6769,
+        #     "formula": "NaCl",
+        #     "sgs": 225,
+        #     "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        # },
+        # {
+        #     "phase_id": 86,
+        #     "formula": "ZnS",
+        #     "sgs": 216,
+        #     "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        # },
+        # {
+        #     "phase_id": 5813,
+        #     "formula": "GaAs",
+        #     "sgs": 216,
+        #     "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        # },
+        # {
+        #     "phase_id": 18989,
+        #     "formula": "SrTiO3",
+        #     "sgs": 221,
+        #     "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        # },
+        # {
+        #     "phase_id": 12954,
+        #     "formula": "BaTiO3",
+        #     "sgs": 221,
+        #     "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        # },
+        # {
+        #     "phase_id": 7282,
+        #     "formula": "ZnO",
+        #     "sgs": 186,
+        #     "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        # },
+        # {
+        #     "phase_id": 16803,
+        #     "formula": "KNbO3",
+        #     "sgs": 221,
+        #     "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        # },
+        # --- New structures: 5 binary + 5 complex ---
+        # Binary
         {
-            "phase_id": 9968,
-            "formula": "MgO",
-            "sgs": 225,
+            "phase_id": 6597,
+            "formula": "Al2O3",
+            "sgs": 167,
             "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
         },
         {
-            "phase_id": 6336,
-            "formula": "SiC",
-            "sgs": 186,
-            "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
-        },
-        {
-            "phase_id": 8998,
-            "formula": "BN",
+            "phase_id": 6376,
+            "formula": "GaP",
             "sgs": 216,
             "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
         },
         {
-            "phase_id": 6769,
-            "formula": "NaCl",
-            "sgs": 225,
-            "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
-        },
-        {
-            "phase_id": 86,
-            "formula": "ZnS",
+            "phase_id": 6409,
+            "formula": "InSb",
             "sgs": 216,
             "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
         },
         {
-            "phase_id": 5813,
-            "formula": "GaAs",
-            "sgs": 216,
+            "phase_id": 5250,
+            "formula": "Cu2O",
+            "sgs": 224,
             "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
         },
         {
-            "phase_id": 18989,
-            "formula": "SrTiO3",
+            "phase_id": 5344,
+            "formula": "Fe2O3",
+            "sgs": 167,
+            "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        },
+        # Complex
+        {
+            "phase_id": 13167,
+            "formula": "CaTiO3",
+            "sgs": 62,
+            "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        },
+        {
+            "phase_id": 12744,
+            "formula": "LaAlO3",
             "sgs": 221,
             "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
         },
         {
-            "phase_id": 12954,
-            "formula": "BaTiO3",
+            "phase_id": 10561,
+            "formula": "YAlO3",
+            "sgs": 62,
+            "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        },
+        {
+            "phase_id": 8713,
+            "formula": "MgAl2O4",
+            "sgs": 227,
+            "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+        },
+        {
+            "phase_id": 9013,
+            "formula": "BiFeO3",
             "sgs": 221,
             "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
         },
