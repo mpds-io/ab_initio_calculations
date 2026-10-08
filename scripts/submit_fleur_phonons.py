@@ -82,7 +82,7 @@ def get_structure(phase_id: int, formula: str, sgs: int):
     return structure
 
 
-def build_fleur_parameters():
+def build_fleur_parameters(num_mpiprocs_per_machine=2):
     """Build fleur_parameters (kwargs for FleurForcesWorkChain).
 
     Loads the standard flapw_default.yml template from mpds_aiida and
@@ -92,6 +92,13 @@ def build_fleur_parameters():
     options.resources are NOT in the template but are required for
     yascheduler: without num_mpiprocs_per_machine, AiiDA defaults to
     1 MPI process, making FLEUR with 300 iterations take weeks.
+
+    num_mpiprocs_per_machine defaults to 2, but some structures need 1:
+    FleurBaseWorkChain's own check_kpts validation rejects 2 MPI ranks as
+    "not optimal" for certain irreducible k-point counts (seen for
+    Al2O3/Fe2O3/MgAl2O4 at kpoints_mesh=[2,2,3]: 23 k-points -> exit 390
+    ERROR_NOT_OPTIMAL_RESOURCES), and BiFeO3 segfaulted inside ScaLAPACK's
+    parallel eigensolver under 2 ranks. 1 MPI avoids both failure modes.
     """
     from mpds_aiida.common import get_template
 
@@ -105,7 +112,7 @@ def build_fleur_parameters():
             "options": {
                 "resources": {
                     "num_machines": 1,
-                    "num_mpiprocs_per_machine": 2,
+                    "num_mpiprocs_per_machine": num_mpiprocs_per_machine,
                 },
                 "environment_variables": {"OMP_NUM_THREADS": "1"},
                 "max_wallclock_seconds": 4 * 10**5,
@@ -118,14 +125,16 @@ def build_fleur_parameters():
     )
 
 
-def submit_phonons(structure, supercell_matrix, label, dry_run=False):
+def submit_phonons(
+    structure, supercell_matrix, label, dry_run=False, num_mpiprocs_per_machine=2
+):
     """Submit PhonopyFleurWorkChain."""
     from mpds_aiida.workflows.fleur_phonopy import PhonopyFleurWorkChain
 
     inputs = {
         "structure": structure,
         "supercell_matrix": List(list=supercell_matrix),
-        "fleur_parameters": build_fleur_parameters(),
+        "fleur_parameters": build_fleur_parameters(num_mpiprocs_per_machine),
         "kpoints_mesh": List(list=[2, 2, 3]),
         "phonopy": {
             "code": load_code("phonopy@local_machine"),
@@ -218,12 +227,17 @@ def main():
         #     "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
         # },
         # --- New structures: 5 binary + 5 complex ---
-        # Binary
+        # Binary (Al2O3/Fe2O3 = corundum: 23 irreducible k-points for
+        # kpoints_mesh=[2,2,3] is prime, so 2 MPI ranks always leaves one
+        # idle -> FleurBaseWorkChain.check_kpts rejects it as "<60% node
+        # load" (exit 390) before FLEUR ever runs. 1 MPI rank sidesteps the
+        # check entirely since there's no idle rank to flag.)
         {
             "phase_id": 6597,
             "formula": "Al2O3",
             "sgs": 167,
             "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+            "num_mpiprocs_per_machine": 1,
         },
         {
             "phase_id": 6376,
@@ -248,6 +262,7 @@ def main():
             "formula": "Fe2O3",
             "sgs": 167,
             "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+            "num_mpiprocs_per_machine": 1,  # same 23-kpts issue as Al2O3
         },
         # Complex
         {
@@ -262,6 +277,10 @@ def main():
             "sgs": 221,
             "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
         },
+        # YAlO3: previous exit=402 was NOT a convergence/mixing issue -- every
+        # displacement showed "no output retrieved at all" (missing out.xml
+        # AND out.error), caused by the yascheduler node pool being down/
+        # orphaned at the time, not FLEUR itself. Resubmitting as a fresh run.
         {
             "phase_id": 10561,
             "formula": "YAlO3",
@@ -273,12 +292,18 @@ def main():
             "formula": "MgAl2O4",
             "sgs": 227,
             "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+            "num_mpiprocs_per_machine": 1,  # same 23-kpts issue as Al2O3
         },
+        # BiFeO3: under 2 MPI ranks, FLEUR segfaulted (SIGSEGV) inside
+        # ScaLAPACK's parallel eigensolver (pzhegvx_/pzheevx_) during
+        # diagonalization. 1 MPI rank avoids the parallel ScaLAPACK path
+        # (falls back to plain LAPACK), which doesn't hit this crash.
         {
             "phase_id": 9013,
             "formula": "BiFeO3",
             "sgs": 221,
             "supercell": [[1, 1, 0], [-1, 1, 0], [0, 0, 2]],
+            "num_mpiprocs_per_machine": 1,
         },
     ]
     if args.formula:
@@ -297,6 +322,7 @@ def main():
             sys_info["supercell"],
             label,
             dry_run=args.dry_run,
+            num_mpiprocs_per_machine=sys_info.get("num_mpiprocs_per_machine", 2),
         )
 
 
