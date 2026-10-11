@@ -1,17 +1,14 @@
 import os
 from collections import namedtuple
 import ase
-import yaml
 from aiida_crystal_dft.io.basis import BasisFile
 from aiida_crystal_dft.io.d12 import D12
 from aiida_crystal_dft.io.f34 import Fort34
 from ase.data import chemical_symbols
+from mpds_aiida.common import get_template
 
 from ab_initio_calculations.settings import Settings
 
-TEMPLATE_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "conf/templates"
-)
 ELS_REPO_DIR = Settings().basis_sets_dir
 
 verbatim_basis = namedtuple("basis", field_names="content, all_electron")
@@ -40,21 +37,6 @@ def get_basis_sets(repo_dir=ELS_REPO_DIR):
         )
 
     return bs_repo
-
-
-def get_template(template="pcrystal_demo.yml"):
-    """
-    Templates control the calc setup which is not supposed to be changed
-    """
-    template_loc = os.path.join(TEMPLATE_DIR, template)
-    if not os.path.exists(template_loc):
-        template_loc = template
-
-    assert os.path.exists(template_loc)
-
-    with open(template_loc) as f:
-        calc = yaml.load(f.read(), Loader=yaml.SafeLoader)
-    return calc
 
 
 def get_input(calc_params_crystal, elements, bs_src, label):
