@@ -15,11 +15,9 @@ Usage:
 """
 
 import sys
+from copy import deepcopy
 
 from aiida import load_profile
-
-load_profile()
-
 from aiida.engine import submit
 from aiida.orm import Dict, load_node
 from aiida.plugins import WorkflowFactory
@@ -27,35 +25,40 @@ from aiida.plugins import WorkflowFactory
 AbacusBaseWorkChain = WorkflowFactory("abacus.base")
 
 
-def main(ref_pk, cutoffs):
-    ref = load_node(ref_pk)
+def build_cutoff_builder(ref, ecut):
+    """Construct an SCF builder without submitting a calculation."""
     structure = ref.inputs.structure
     label = structure.get_formula()
+    params = deepcopy(ref.inputs.parameters.get_dict())
+    params["input"].update(
+        {
+            "ecutwfc": ecut,
+            "calculation": "scf",
+            "cal_stress": 1,
+            "cal_force": 1,
+        }
+    )
+    params["input"].pop("relax_nmax", None)
+
+    builder = AbacusBaseWorkChain.get_builder()
+    builder.abacus.code = ref.inputs.code
+    builder.abacus.structure = structure
+    builder.abacus.parameters = Dict(dict=params)
+    builder.abacus.pseudos = dict(ref.inputs.pseudos)
+    builder.kpoints = ref.inputs.kpoints
+    builder.abacus.metadata.options = dict(ref.get_options())
+    if "settings" in ref.inputs:
+        builder.abacus.settings = ref.inputs.settings
+    builder.metadata.label = f"{label} ecut-test {ecut}Ry"
+
+    return builder
+
+
+def main(ref_pk, cutoffs):
+    ref = load_node(ref_pk)
     submitted = []
-
     for ecut in cutoffs:
-        params = ref.inputs.parameters.get_dict()
-        params["input"].update(
-            {
-                "ecutwfc": ecut,
-                "calculation": "scf",
-                "cal_stress": 1,
-                "cal_force": 1,
-            }
-        )
-        params["input"].pop("relax_nmax", None)
-
-        builder = AbacusBaseWorkChain.get_builder()
-        builder.abacus.code = ref.inputs.code
-        builder.abacus.structure = structure
-        builder.abacus.parameters = Dict(dict=params)
-        builder.abacus.pseudos = dict(ref.inputs.pseudos)
-        builder.abacus.kpoints = ref.inputs.kpoints
-        builder.abacus.metadata.options = dict(ref.get_options())
-        if "settings" in ref.inputs:
-            builder.abacus.settings = ref.inputs.settings
-        builder.metadata.label = f"{label} ecut-test {ecut}Ry"
-
+        builder = build_cutoff_builder(ref, ecut)
         wc = submit(builder)
         print(f"ecutwfc {ecut} Ry -> pk {wc.pk}")
         submitted.append((ecut, wc.pk))
@@ -82,6 +85,7 @@ def report(pks):
 
 
 if __name__ == "__main__":
+    load_profile()
     if len(sys.argv) > 1 and sys.argv[1] == "--report":
         report(sys.argv[2:])
     else:

@@ -1,6 +1,7 @@
 """Extend the October comparison using dft-organizer's phonon reporting API."""
 
 import csv
+import hashlib
 import json
 from datetime import datetime
 from pathlib import Path
@@ -105,7 +106,7 @@ def reconstruct_if_needed(wc):
     audit["source_force_constants_shape"] = list(original_fc.shape)
     audit["reconstructed_force_constants_shape"] = list(phonon.force_constants.shape)
     audit["n_imaginary_before"] = pu.extract_frequencies_from_workchain(
-        wc.pk, mesh=[8, 8, 8]
+        wc.pk, mesh=[8, 8, 8], force_constants_override=original_fc
     )["n_imaginary"]
     return phonon.force_constants.copy(), audit
 
@@ -163,6 +164,7 @@ if __name__ == "__main__":
             np.savez_compressed(fc_path, force_constants=force_constants)
             row["force_constants_source"] = str(fc_path.relative_to(ROOT))
             audit["reconstructed_force_constants_file"] = row["force_constants_source"]
+            audit["reconstructed_force_constants_sha256"] = hashlib.sha256(fc_path.read_bytes()).hexdigest()
         audit["n_imaginary_after"] = row["n_imaginary"]
         audit["threshold_cm1"] = pu.DEFAULT_THRESHOLD_CM1
         audit["mesh"] = [8, 8, 8]
