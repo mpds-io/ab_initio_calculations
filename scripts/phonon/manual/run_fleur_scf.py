@@ -547,6 +547,18 @@ def _get_atom_group_counts(inp_xml_path: Path) -> list[int]:
     return counts
 
 
+def copy_retrieved_fleur_xml(retrieved: Any, destination: Path) -> tuple[Path, Path]:
+    """Copy saved FLEUR XML as bytes, preserving its declared encoding.
+
+    AiiDA's get_object_content defaults to text, whereas Path.write_bytes
+    requires bytes. Request binary content explicitly for both input and output.
+    """
+    paths = tuple(destination / name for name in ("out.xml", "inp.xml"))
+    for path in paths:
+        path.write_bytes(retrieved.base.repository.get_object_content(path.name, mode="rb"))
+    return paths
+
+
 def write_forces_file_from_out_xml(
     out_xml: Path,
     forces_file: Path,
